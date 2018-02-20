@@ -12,12 +12,12 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-In order to get SelfPortal properly functional you need to have OpenStack and VSphere (VCenter) installations in your infrastructure and a Ubuntu Linux machine.
-At both installations you should have prepared Images (OpenStack) or Templates (VSphere).
+In order to get SelfPortal properly functional you need to have OpenStack and vSphere (vCenter) installations in your infrastructure and a Ubuntu Linux machine.
+At both installations you should have prepared Images (OpenStack) or Templates (vSphere).
 
 ### Installation [MANUAL]
 
-Using vSphere and OpenStack in SelfPortal are optional. You can skip points 9 or 10 (or both) of this instruction respectively. 
+Using vSphere and OpenStack in SelfPortal are optional. You can skip points 9 or 10 (or both) of this instruction respectively.
 
 1. Install NGINX, PHP (curl, json, ldap, mysqli, xml modules), MySQL/MariaDB, Perl (JSON, YAML, LWP::Protocol::https, Socket6, Switch, IO::Socket::SSL modules).
 ```Shell
@@ -69,14 +69,14 @@ apt install python-pip
 pip install python-openstackclient
 ```
 
-10. Optional. Install VMWare vSphere Perl SDK (download it from vmware.com. [Here](https://code.vmware.com/web/sdk/60/vsphere-perl) is a link for VSphere 6.0 SDK).
+10. Optional. Install VMware vSphere Perl SDK (download it from vmware.com. [Here](https://code.vmware.com/web/sdk/60/vsphere-perl) is a link for vSphere 6.0 SDK).
 
-> Prerequisites: 
+> Prerequisites:
 ```Shell
 sudo apt-get install lib32z1 build-essential gcc uuid uuid-dev perl libssl-dev perl-doc liburi-perl libxml-libxml-perl libcrypt-ssleay-perl
 ```
 
-Extract the archive you've downloaded from VMWare website. Install SDK executng vmware-install.pl file.
+Extract the archive you've downloaded from VMware website. Install SDK executng vmware-install.pl file.
 ```Shell
 sudo vmware-vsphere-cli-distrib/vmware-install.pl
 ```
@@ -87,17 +87,17 @@ sudo vmware-vsphere-cli-distrib/vmware-install.pl
 2. Perl will throw warnings, until you change one line at /usr/share/perl/<version>/VMware/VICommon.pm, where <version> is a version of your Perl. For 6.0 - it was a line #2332.
 
 Original line:
-```Perl 
+```Perl
 return defined $user_agent->cookie_jar and $user_agent->cookie_jar->as_string ne '';
 ```
 Line to replace:
 ```Perl
-return (defined $user_agent->cookie_jar and $user_agent->cookie_jar->as_string ne ''); 
+return (defined $user_agent->cookie_jar and $user_agent->cookie_jar->as_string ne '');
 ```
 
 ### Installation [SEMI-AUTOMATIC]
 
-You can use install.sh file for semi-automatic install. 
+You can use install.sh file for semi-automatic install.
 Nevertheless, you'll still have to install Perl SDK (last point of instruction) manually.
 
 ## Testing and using
@@ -114,13 +114,13 @@ But, just to be sure, lets start some virtual machines:
 
 ![Deploying vms](img/deploying_vms_window.PNG)
 
-> Warning! VSphere VM creation is asynchronous and OpenStack is not. This part of instruction is based on VSphere VM creation.
+> Warning! vSphere VM creation is asynchronous and OpenStack is not. This part of instruction is based on vSphere VM creation.
 
-Just wait a little (VM creation time is really depends on multiple conditions, such as image size, host performance and so on), then press refresh icon at the top right corner of the page. If your VCenter shows, that VM is ready, but SelfPortal (within a time of one minute) it doesn't - you've probably forgot to add www-data permissions to modify root crontab.
+Just wait a little (VM creation time is really depends on multiple conditions, such as image size, host performance and so on), then press refresh icon at the top right corner of the page. If your vCenter shows, that VM is ready, but SelfPortal (within a time of one minute) it doesn't - you've probably forgot to add www-data permissions to modify root crontab.
 
 ![Success deployment](img/one_deployed_vm_window.PNG)
 
-That's it! Now you can check your notifications... 
+That's it! Now you can check your notifications...
 
 ![Dashboard](img/notifications_window.PNG)
 
@@ -145,12 +145,12 @@ This project is licensed under Apache 2.0 License. See [license](LICENSE) file f
 
 ## Acknowledgments && Built-ins
 
-* [VMWare code examples](https://github.com/vmware/vsphere-automation-sdk-perl) are widely used in this project.
+* [VMware code examples](https://github.com/vmware/vsphere-automation-sdk-perl) are widely used in this project.
 * Great thanks to Vittorio Pavesi and hist [this](http://vittoriop77.blogspot.com.by/2016/03/vsphere-6-html-console.html) post particularly, which has guided us through creating VNC console for our portal.
-* [VMWare](communities.vmware.com) and [OpenStack](https://www.openstack.org/community/) communities topics have helped us a lot.
+* [VMware](communities.vmware.com) and [OpenStack](https://www.openstack.org/community/) communities topics have helped us a lot.
 * [PHPMailer](https://github.com/PHPMailer/PHPMailer) is used to notificate users and admins team.
 * [Bootstrap](https://getbootstrap.com/) in concatenation with [Font Awesome Icons](http://fontawesome.io/) is a libraries we've based on. [SB Admin](https://startbootstrap.com/template-overviews/sb-admin-2/) - is a template we used.
-* [jQuery](https://jquery.com/), [jQueryUI](https://jqueryui.com/), [MetisMenu](https://github.com/onokumus/metismenu), [DataTables](https://datatables.net/) - all of this is used to make picture beautiful for you. 
+* [jQuery](https://jquery.com/), [jQueryUI](https://jqueryui.com/), [MetisMenu](https://github.com/onokumus/metismenu), [DataTables](https://datatables.net/) - all of this is used to make picture beautiful for you.
 
 ## Development plans
 
@@ -159,10 +159,10 @@ This project is licensed under Apache 2.0 License. See [license](LICENSE) file f
 - [x] HTTP website proxy, blacklist
 - [x] User list in admin panel
 - [x] OpenStack provider - VM creation, modification, deletion
-- [x] VSphere provider - VM creation, modification, deletion
+- [x] vSphere provider - VM creation, modification, deletion
 - [x] Terminator - delete old unused websites and VMs
 - [ ] HTTPS website proxy using wildcard certificates
 - [ ] WebSocket proxy
 - [ ] VMs Backups
-- [ ] Mounting ISO images to VSphere VMs
+- [ ] Mounting ISO images to vSphere VMs
 - [ ] Info for users about why vSphere VM was failed to create

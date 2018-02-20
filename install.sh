@@ -31,7 +31,7 @@ cat >/etc/logrotate.d/selfportal <<EOL
         delaycompress
         notifempty
         create 0600 www-data www-data
-} 
+}
 EOL
 
 mkdir -p /var/www/selfportal
@@ -143,7 +143,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	echo
 	echo "Well then. Now we will need you to provide us with some information about your installation:"
-	
+
 	while [[ -z "$openstackserver" ]]
 	do
 		read -p "Enter OpenStack endpoint (like https://openstack.example.com:5000/v3): " openstackserver
@@ -152,7 +152,7 @@ then
 //Config OpenStack
 define('OS_AUTH_URL',"$openstackserver");
 EOL
-	
+
 	while [[ -z "$openstackprojectid" ]]
 	do
 		read -p "Enter OpenStack project id: " openstackprojectid
@@ -160,7 +160,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_PROJECT_ID',"$openstackprojectid");
 EOL
-	
+
 	while [[ -z "$openstackprojectname" ]]
 	do
 		read -p "Enter OpenStack project name: " openstackprojectname
@@ -176,7 +176,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_USER_DOMAIN_NAME',"$openstackuserdomain");
 EOL
-	
+
 	while [[ -z "$openstackuser" ]]
 	do
 		read -p "Enter OpenStack username we can use to deploy VMs: " openstackuser
@@ -184,7 +184,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_USERNAME',"$openstackuser");
 EOL
- 	
+
 	while [[ -z "$openstackpassword" ]]
 	do
 		read -s -p "Enter password: " openstackpassword
@@ -193,7 +193,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_PASSWORD',"$openstackpassword");
 EOL
-	
+
 	while [[ -z "$openstackregion" ]]
 	do
 		read -p "Enter OpenStack region name (like RegionOne): " openstackregion
@@ -201,7 +201,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_REGION_NAME',"$openstackregion");
 EOL
-	
+
 	while [[ -z "$openstackinterface" ]]
 	do
 		read -p "Enter interface (like public): " openstackinterface
@@ -217,7 +217,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_IDENTITY_API_VERSION',"$openstackidentity");
 EOL
-	
+
 	while [[ -z "$openstacknetworkid" ]]
 	do
 		read -p "Enter OpenStack network id: " openstacknetworkid
@@ -225,7 +225,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_NET_ID',"$openstacknetworkid");
 EOL
-	
+
 	while [[ -z "$openstacksecuritygroup" ]]
 	do
 		read -p "Enter OpenStack security group: " openstacksecuritygroup
@@ -233,7 +233,7 @@ EOL
 	cat >>/var/www/selfportal/config/config.php <<EOL
 define('OS_SEC_GRP',"$openstacksecuritygroup");
 EOL
-	
+
 	echo "Great, we've done with OpenStack configuration!";
 else echo "Okay, it doesn't seems to be Y or y symbol, so no connections to OpenStack were made."
 fi
@@ -277,7 +277,7 @@ then
 		read -p "In which datacenter SP should search for VMs? Enter: " $vcenterdc
 	done
     cat >>/var/www/selfportal/config/config.php <<EOL
-//vSPHERE CONFIG
+//vSphere CONFIG
 define('VMW_USERNAME',"$vcenteruser");
 define('VMW_PASSWORD',"$vcenterpasswd");
 define('VMW_SERVER',"$vcenter");
@@ -287,7 +287,7 @@ define('VMW_RESOURCE_POOL',"$vcenterrp");
 define('VMW_DATASTORE',"$vcenterds");
 define('VMW_DATACENTER',"$vcenterdc");
 EOL
-	
+
 	echo "Great, we've done with vSphere configuration!";
 else echo
 	echo "Okay, it doesn't seems to be Y or y symbol, so no connections to vSphere config were made."
@@ -307,7 +307,7 @@ server {
         index index.html index.htm index.php ;
 
         server_name $servername;
-		
+
 		location / {
 			# First attempt to serve request as file, then
 			# as directory, then fall back to displaying a 404.
@@ -316,7 +316,7 @@ server {
 
 		location ~ \.php$ {
 			include snippets/fastcgi-php.conf;
-	
+
 	#		# With php7.0-cgi alone:
 	#		fastcgi_pass 127.0.0.1:9000;
 	#		# With php7.0-fpm:
@@ -340,7 +340,7 @@ EOL
 echo 'www-data ALL=NOPASSWD: /usr/sbin/nginx, /usr/bin/crontab, /bin/grep' >> /etc/sudoers
 
 read -p "Now we can configure scheduled VM cleaning. Would you like us to add appropriate jobs to crontab? [Yy/Nn] " -n 1 -r
-echo  
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
     (crontab -l 2>/dev/null; echo "0 8 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action notify" ) | crontab -
@@ -355,7 +355,7 @@ then
 	while [[ -z "$daysbeforedelete" ]]
 	do
   		read -p "After how many days after expiration day about the automatic VM shutdown (like 5 days before expiration date). Enter number in days only: " daysbeforedelete
-		
+
 	done
 	while [[ -z "$extlimit" ]]
 	do
@@ -367,7 +367,7 @@ define('DAYS_BEFORE_DISABLE',"$daysbeforeshutdown");
 define('DAYS_BEFORE_DELETE',"-$daysbeforedelete");
 define('DAYS_USER_CAN_EXTEND_VM',"$extlimit");
 EOL
-else 
+else
 	echo "Okay, it doesn't seems to be Y or y symbol, so no actions will be done."
 fi
 
