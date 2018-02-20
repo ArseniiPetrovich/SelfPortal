@@ -146,7 +146,7 @@ This project is licensed under Apache 2.0 License. See [license](LICENSE) file f
 ## Acknowledgments && Built-ins
 
 * [VMWare code examples](https://github.com/vmware/vsphere-automation-sdk-perl) are widely used in this project.
-* Great thanks to Vittorio Pavesi and hist [this](http://vittoriop77.blogspot.com.by/2016/03/vsphere-6-html-console.html) post particularly, which has guided us through creating VNC console for our portal.
+* Great thanks to Vittorio Pavesi and his [this](http://vittoriop77.blogspot.com.by/2016/03/vsphere-6-html-console.html) post particularly, which has guided us through creating VNC console for our portal.
 * [VMWare](communities.vmware.com) and [OpenStack](https://www.openstack.org/community/) communities topics have helped us a lot.
 * [PHPMailer](https://github.com/PHPMailer/PHPMailer) is used to notificate users and admins team.
 * [Bootstrap](https://getbootstrap.com/) in concatenation with [Font Awesome Icons](http://fontawesome.io/) is a libraries we've based on. [SB Admin](https://startbootstrap.com/template-overviews/sb-admin-2/) - is a template we used.

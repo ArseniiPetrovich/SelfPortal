@@ -1,6 +1,6 @@
 <?php
-/*error_reporting(E_ALL);
-ini_set('display_errors', 'on');*/
+error_reporting(E_ALL);
+ini_set('display_errors', 'on');
 ini_set('session.cookie_httponly', '1');
 session_start();
 if (!isset($_SESSION['user_id'])) die (http_response_code(401));
@@ -16,14 +16,16 @@ include_once ("access.php");
         case "vm":
         case "vms":
         $cli_flag=false;
+		if (!server_db("SELECT `enabled` from `providers` where `title`='".$_POST['provider']."'")) {die ("DISABLED");}
+		$provider_id=server_db("SELECT id FROM `providers` where title='".$_POST['provider']."'");
         switch ($_POST['provider']) {
             case "openstack":
                 switch ($_POST['action']) {
                     case "createserver":
-                        $server_id=create_server($_POST['name']['image'],$_POST['name']['flavor'],$_POST['name']['keypair'],$_POST['name']['name'],$_SESSION['user_id'],$_SESSION['user']);
+						$server_id=create_openstack_vm($_POST['name']['image'],$_POST['name']['flavor'],$_POST['name']['keypair'],$_POST['name']['name'],$_SESSION['user_id'],$_SESSION['user']);
                         if (isset($server_id)) {
                             if (!preg_match('/\s/',$server_id)){
-                            $query="INSERT INTO `vms` VALUES ('$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."','Enabled')";
+                            $query="INSERT INTO `vms` (id,ip,user_id,title,exp_date,provider,status,cleared) SELECT '$server_id',NULL,'".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='ENABLED'),0 from `providers` where `title`='OpenStack'";
                             }
                             else {
                                 ob_start();
@@ -35,7 +37,7 @@ include_once ("access.php");
                                 send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user with id ".$_SESSION['user_id']." tried to create VM in OpenStack. Please, check it. Here is the details of his POST query:<pre> ".$postdump."</pre> And also here is the error, returned by OpenStack: ".$server_id);
                                 ob_get_clean();
                                 echo preg_replace("(\(.*\))","",$server_id);
-                                return;
+								$query="INSERT INTO `vms` (id,ip,user_id,title,exp_date,provider,status,cleared) SELECT '$server_id',NULL,'".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='FAILURE'),0 from `providers` where `title`='OpenStack'";
                             }
                         }
                         else {
@@ -47,65 +49,63 @@ include_once ("access.php");
                             send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user with id ".$_SESSION['user_id']." tried to create VM in openstack. Please, check it. Here is the details of his POST query: ".$postdump);
                         }
                         break;
-                    case "list": $cli .=" server list -f json";
-                        if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_vms($cli,$_POST['panel'],$_POST['provider']);
+                    case "list": get_vms($_POST['panel'],$_POST['provider']);
                         break;
-                    case "info": $cli .=" server show '$_POST[id]' -f json";
+                    case "info": $openstack_cli .=" server show '$_POST[id]' -f json";
                         $cli_flag=true;
                         break;
-                    case "stopvm": $cli .=" server stop '$_POST[id]'";
+                    case "stopvm": $openstack_cli .=" server stop '$_POST[id]'";
                         $cli_flag=true;
-                        $query="UPDATE `vms` SET `status`='Disabled' where `vm_id`='$_POST[id]'";
+						$multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='DISABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         break;
-                    case "startvm": $cli .=" server start '$_POST[id]'";
-                        $query="UPDATE `vms` SET `status`='Enabled' where `vm_id`='$_POST[id]'";
-                        $cli_flag=true;
-                        break;
-                    case "terminatevm": $cli .=" server delete '$_POST[id]'";
-                        $cli_flag=true;
-                        $query="UPDATE `vms` set `vm_id`='TERMINATED_OPENSTACK".$_POST['id']."' WHERE `vm_id`= '$_POST[id]'";
-                        break;
-					case "clearvm":
-						$query="DELETE FROM `vms` WHERE `vm_id`= '".$_POST['id']."'";
-                        break;
-                    case "rebootvm": $cli .=" server reboot '$_POST[id]'";
-                        $query="UPDATE `vms` SET `status`='Enabled' where `vm_id`='$_POST[id]'";
+                    case "startvm": $openstack_cli .=" server start '$_POST[id]'";
+						$multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='ENABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         $cli_flag=true;
                         break;
-                    case "vnc": $cli .=" console url show '$_POST[id]' -f json";
+                    case "terminatevm": $openstack_cli .=" server delete '$_POST[id]'";
+                        $cli_flag=true;
+						$multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='TERMINATED');UPDATE `vms` set `status`=@A WHERE `id`= '$_POST[id]';";
+                        break;
+                    case "rebootvm": $openstack_cli .=" server reboot '$_POST[id]'";
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='ENABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         $cli_flag=true;
                         break;
-                    case "images": $cli .=" image list -f json";
+                    case "vnc": $openstack_cli .=" console url show '$_POST[id]' -f json";
                         $cli_flag=true;
                         break;
-                    case "imagedetails": $cli .=" image show '$_POST[id]' -f json";
+                    case "images": $openstack_cli .=" image list --property sp=allow -f json";
                         $cli_flag=true;
                         break;
-                    case "flavor": $cli .=" flavor list -f json";
+                    case "imagedetails": $openstack_cli .=" image show '$_POST[id]' -f json";
                         $cli_flag=true;
                         break;
-                    case "flavordetails": $cli .=" flavor show '$_POST[id]' -f json";
+                    case "flavor": $openstack_cli .=" flavor list -f json";
                         $cli_flag=true;
                         break;
-                    case "extend":
-                        $query="UPDATE vms set exp_date=DATE_ADD(vms.exp_date, INTERVAL '$_POST[days]' DAY) WHERE vm_id='$_POST[id]'";
-                        break;
-                    case "count":
-                        $query = "SELECT COUNT(vm_id) FROM `vms` WHERE user_id='".$_SESSION['user_id']."'";
-                        $result=server_db($query);
+                    case "flavordetails": $openstack_cli .=" flavor show '$_POST[id]' -f json";
+                        $cli_flag=true;
                         break;
                     case "assignip":
                         add_ip_to_server($_POST['id'],get_free_ip());
                         break;
                 }
+				$cli=$openstack_cli;
 				break;
 			case "vsphere":
 				switch ($_POST['action']) {
                     case "createserver":
-                        $server_id=create_vsphere_vm($_POST['name']['image'],$_POST['name']['name'],$_SESSION['user']);
+						/*if (server_db("SELECT * FROM `tasks` where `title` like '".$_POST['name']['name']."_%' where provider='$provider_id'") || server_db("SELECT * FROM `vms` where `title` ='".$_POST['name']['name']."' where provider='$provider_id'"))
+						{
+							server_db("INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='FAILURE'),0 from `providers` where `title`='vSphere'");
+							return;
+						}*/
+						$server_id=create_vsphere_vm($_POST['name']['image'],$_POST['name']['name'],$_SESSION['user']);
                         if (isset($server_id)) {
                             if (!preg_match('/\s/',$server_id)){
-                            $query="INSERT INTO `vms` VALUES ('$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."','Enabled')";
+                            $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='BUILDING'),0 from `providers` where `title`='vSphere'";
 							shell_exec ('(sudo crontab -l -u root | grep -v "/modules/tasks.php --action vmupdate"; echo "* * * * * /usr/bin/php '.$_SERVER['DOCUMENT_ROOT'].'/modules/tasks.php --action vmupdate") | sudo crontab -u root -');
                             }
                             else {
@@ -118,7 +118,7 @@ include_once ("access.php");
                                 send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user with id ".$_SESSION['user_id']." tried to create VM in VSphere. Please, check it. Here is the details of his POST query:<pre> ".$postdump."</pre> And also here is the error, returned by VSphere: ".$server_id);
                                 ob_get_clean();
 								echo "VM cannot be created. Reason unknown. Admin team is already notified about your problem. Keep calm and wait for help.";
-                                return;
+                                $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='FAILURE'),0 from `providers` where `title`='vSphere'";
                             }
                         }
                         else {
@@ -131,50 +131,123 @@ include_once ("access.php");
 							echo "VM cannot be created. Check if there is no VM with the same name created.";
                         }
                         break;
-                    case "list": $cli .="listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
-                        if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_vms($cli,$_POST['panel'],$_POST['provider']);
+                    case "list": get_vms($_POST['panel'],$_POST['provider']);
                         break;
-                    case "info": $cli .="listvms.pl --vmname '$_POST[id]' --datacenter '".VMW_DATACENTER."'";
+                    case "info": $vsphere_cli .="listvms.pl --vmname '$_POST[id]' --datacenter '".VMW_DATACENTER."'";
                         $cli_flag=true;
                         break;
-                    case "stopvm": $cli .="controlvm.pl --vmname '$_POST[id]' --action Stop";
+                    case "stopvm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Stop";
                         $cli_flag=true;
-                        $query="UPDATE `vms` SET `status`='Disabled' where `vm_id`='$_POST[id]'";
+                        $multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='DISABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         break;
-                    case "startvm": $cli .="controlvm.pl --vmname '$_POST[id]' --action Start";
-                        $query="UPDATE `vms` SET `status`='Enabled' where `vm_id`='$_POST[id]'";
-                        $cli_flag=true;
-                        break;
-                    case "terminatevm": $cli .="controlvm.pl --vmname '$_POST[id]' --action Destroy";
-                        $cli_flag=true;
-                        $query="UPDATE `vms` set `vm_id`='TERMINATED_VSPHERE_".$_POST['id']."' WHERE `vm_id`= '$_POST[id]'";
-                        break;
-					case "clearvm":
-						$query="DELETE FROM `vms` WHERE `vm_id`= '".$_POST['id']."'";
-                        break;	
-                    case "rebootvm": $cli .="controlvm.pl --vmname '$_POST[id]' --action Restart";
-                        $query="UPDATE `vms` SET `status`='Enabled' where `vm_id`='$_POST[id]'";
+                    case "startvm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Start";
+                        $multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='ENABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         $cli_flag=true;
                         break;
-                    case "vnc": $cli .="vnc.pl -vmname ".$_POST[id];
+                    case "terminatevm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Destroy";
+                        $cli_flag=true;
+                        $multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='TERMINATED');UPDATE `vms` set `status`=@A WHERE `id`= '$_POST[id]';";
+                        break;
+                    case "rebootvm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Restart";
+                        $multiquery=true;
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='ENABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         $cli_flag=true;
                         break;
-                    case "images": $cli .="listvms.pl --folder '".VMW_TEMPLATE_FOLDER."' --datacenter '".VMW_DATACENTER."'";
+                    case "vnc": $vsphere_cli .="vnc.pl -vmname ".$_POST[id];
+                        $cli_flag=true;
+                        break;
+                    case "images": $vsphere_cli .="listvms.pl --folder '".VMW_TEMPLATE_FOLDER."' --datacenter '".VMW_DATACENTER."'";
                         $cli_flag=true;
                         break;
                     case "flavor": echo json_encode(array(), JSON_FORCE_OBJECT); return;
                         break;
-                    case "extend":
-                        $query="UPDATE vms set exp_date=DATE_ADD(vms.exp_date, INTERVAL '$_POST[days]' DAY) WHERE vm_id='$_POST[id]'";
-                        break;
-                    case "count":
-                        $query = "SELECT COUNT(vm_id) FROM `vms` WHERE user_id='".$_SESSION['user_id']."'";
-                        $result=server_db($query);
-                        break;
                 }
-				$cli .=" --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
+				$cli=$vsphere_cli." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
+				break;
+			default:
+				switch ($_POST['action']) {
+					case "list": if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_vms($_POST['panel']);
+                        break;
+					case "count":
+                        $query = "SELECT COUNT(id) FROM `vms` WHERE user_id='".$_SESSION['user_id']."'";
+                        //$result=server_db($query);
+                        break;
+					case "extend":
+                        $query="UPDATE vms set exp_date=DATE_ADD(vms.exp_date, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
+                        break;
+					case "clearvm":
+						$query="UPDATE `vms` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'";
+                        break;	
+				}
         }
         break;
+		case "snapshots":
+			switch ($_POST['provider'])
+			{
+				case "openstack":
+					switch ($_POST['action']){
+						case "list":
+							//$openstack_cli .=" image list --property backup_type=spsnapshot";
+                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
+							break;
+						case "add": 
+							$openstack_cli .= " server backup create --type spsnapshot ".$_POST['name'];
+							
+							break;
+						case "terminate":
+							$openstack_cli .= "  image delete ".$_POST['id'];
+							$cli_flag=true;
+							break;
+						case "clear": 
+							$openstack_cli .= "  image delete ".$_POST['id'];
+							$cli_flag=true;
+							$query="UPDATE `snapshots` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'"; break;
+						case "extend":
+                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
+                    		break;
+                		case "count":
+                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE vm_id in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
+                    		break;
+						case "info": $openstack_cli .=" image show ".$_POST['id'];
+                        	$cli_flag=true;
+							break;
+						case "restore":
+							restore_vm($_POST['id'],$_POST['provider']);
+							//$cli_flag=true;
+							break;
+					}
+					$cli=$openstack_cli;
+					break;	
+				case "vsphere":
+					switch ($_POST['action']){
+						case "list":
+							//$vsphere_cli .="snapshots.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
+                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
+							break;
+						case "add":break;
+						case "terminate":break;
+						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'"; break;
+						case "extend":
+                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
+                    		break;
+                		case "count":
+                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE vm_id in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
+							$result=server_db($query);
+                    		break;
+						case "info": $vsphere_cli .=" image show ".$_POST['id'];
+                        	$cli_flag=false;
+							break;
+						case "restore":
+							restore_vm($_POST['id'],$_POST['provider']);
+							break;
+					}
+					$cli=$vsphere_cli;
+					break;
+			}
+			
         case "keys":
             switch ($_POST['action']){
                 case "list":
@@ -199,14 +272,14 @@ include_once ("access.php");
         case "notifications":
             switch ($_POST['action']){
                 case "list":
-                    $query="SELECT `title`,`exp_date`,`days`,`status`,'VM' FROM `vms`,`users`, (SELECT `vm_id`,DATEDIFF(exp_date,CURDATE()) as days FROM `vms`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `vms`.`user_id`=`users`.`user_id` AND `days`.`vm_id`= `vms`.`vm_id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `vms`.`vm_id` not like 'TERMINATED%' AND `vms`.`vm_id` not like 'FAILURE%' UNION SELECT concat(`site_name`,'.',`domain`),`stop_date`,`days`,`status`,'site' FROM `users`,`proxysites`,`domains`, (SELECT `site_id`, DATEDIFF(stop_date,CURDATE()) as days FROM `proxysites`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` AND `days`.`site_id`= `proxysites`.`site_id` AND `users`.`user_id`=".$_SESSION['user_id']." ORDER by `exp_date`";
+                    $query="SELECT `title`,`exp_date`,`days`,`status`,'VM' FROM `vms`,`users`, (SELECT `vms`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `vms`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `vms`.`user_id`=`users`.`user_id` AND `days`.`id`= `vms`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `vms`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') AND `vms`.`status`!= (SELECT id from `vms_statuses` where title='TERMINATED') UNION SELECT `title`,`exp_date`,`days`,`status`,'task' FROM `tasks`,`users`, (SELECT `tasks`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `tasks`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `tasks`.`user_id`=`users`.`user_id` AND `days`.`id`= `tasks`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `tasks`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') AND `vms`.`status`!= (SELECT id from `vms_statuses` where title='TERMINATED') UNION SELECT concat(`site_name`,'.',`domain`),`stop_date`,`days`,`status`,'site' FROM `users`,`proxysites`,`domains`, (SELECT `site_id`, DATEDIFF(stop_date,CURDATE()) as days FROM `proxysites`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` AND `days`.`site_id`= `proxysites`.`site_id` AND `users`.`user_id`=".$_SESSION['user_id']." ORDER by `exp_date`";
                     break;
             }
             break;
 	    case "domains":
 		switch ($_POST['action']) {
 			case "delete":
-                $query = "DELETE FROM `domains` WHERE `domain_id`= '".$_POST['id']."'; DELETE from `proxysites` where `domain_id`='".$_POST['id']."'";
+                $query = " DELETE from `proxysites` where `domain_id`='".$_POST['id']."';DELETE FROM `domains` WHERE `domain_id`= '".$_POST['id']."';";
                 $flag=true;
                 $multiquery=true;
                 break;
@@ -234,11 +307,35 @@ include_once ("access.php");
 		}
           break;
       case "users":
-            switch ($_POST['action']){
-            case "list":
-                $query = "SELECT `user_id`,`username`,`email`,`department` FROM `users`";
-                break;
-                }
+			$users_table=server_db("SELECT `table_name` from `user_types` where title like '".$_POST['provider']."'");
+			switch ($_POST['provider'])
+			{
+				case "ldap":
+				switch ($_POST['action']){
+            		case "list":
+                	$query = "SELECT `user_id`,`username`,`email`,``departments`.`title` FROM `users`,`departments` where `user_type`=(SELECT id from `user_types` where title like '".$_POST['provider']."') and `departments`.`id`=`users`.`department`";
+                	break;
+				}
+				break;
+				case "internals":
+                switch ($_POST['action']){
+            		case "list":
+                	$query = "SELECT `user_id`,`username`,`email`,`department` FROM `users` where `user_type`=(SELECT id from `user_types` where title like '".$_POST['provider']."') and `departments`.`id`=`users`.`department`";
+                	break;
+					case "add": 
+					if (mysqli_num_rows(server_db("SELECT `username` from `users` where u like '".$_POST['provider']."'"))) return -1;
+					$multiquery=true; 
+					$query="SET @A=(SELECT id from `user_types` where `title` like '".$_POST['provider']."');
+					INSERT INTO `users` VALUES(NULL,'".$_POST['name']['username']."','".$_POST['name']['email']."','".$_POST['name']['department']."',@A,0,NULL,NULL,NULL);
+					SET @B=(SELECT id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
+					INSERT INTO `".$users_table."` VALUES (NULL,@B,password_hash('".$_POST['name']['password']."'),'".$_POST['name']['rights']."');";
+					break;
+					case "delete":
+					$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
+					break;
+				}
+				break;
+			}
       break;
       case "blacklist":
             switch ($_POST['action']){

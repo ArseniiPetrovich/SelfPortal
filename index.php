@@ -30,7 +30,6 @@
 
       // check to see if login form has been submitted
       if(isset($_POST['username'])){
-		  echo authenticate($_POST['username'],$_POST['password']);
           // run information through authenticator
           if(authenticate($_POST['username'],$_POST['password']))
           {

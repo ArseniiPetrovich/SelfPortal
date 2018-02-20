@@ -107,11 +107,20 @@ sub update_task()
 	if ($@) { print 1; }
 	elsif ($task->state->val eq 'success') {
 		my $uuid=Vim::get_view(mo_ref=>$task->result)->summary->config->uuid;
-		print $uuid;
-		renamesub ($uuid,$user);
+		my $rename = renamesub ($uuid,$user);
+		if ($rename ne -1 && $rename ne "error")
+		{
+			my %uuid = (
+				'ID' => $uuid,
+			);
+			print encode_json \%uuid;
+		}
+		else {print -2; return -2};
 	}
 	elsif ($task->state->val eq 'error') {print $task->error->localizedMessage;}
-	else {print 0;}
+	elsif ($task->state->val eq 'running') {print 0; return 0;}
+    else {print -1; return -1;};
+
 }
 
 sub renamesub
@@ -129,7 +138,18 @@ sub renamesub
 	my $rename = $vm_view->name;
 	my $userwithunderline='_'.$user;
 	$rename =~ s/$userwithunderline//i;
-	$vm_view->Rename_Task(newName=>$rename);
+	my $task_rename=$vm_view->Rename_Task(newName=>$rename);
+	my $state_rename='failure';
+	my $attempts=0;
+	while ($state_rename ne "success" && $state_rename ne "error" && $attempts<10)
+	{
+		$attempts=$attempts+1;
+		sleep 1;
+		$state_rename=$task->state->val;
+	}
+	if ($attempts ge 10) { print -1; return -1; }
+	print $state_rename;
+	return $state_rename;
 }
 
 sub get_relocate_spec() {
