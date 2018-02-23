@@ -183,7 +183,7 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 
 						<div class="modal-footer form-row">
 							<div class="col-sm-12 container" style="padding: 0px 0px 10px 0px">
-								<button type="submit" class="form-control btn btn-primary disabled">Submit</button>
+								<button type="submit" class="form-control btn btn-primary">Submit</button>
 							</div>
 							<div class="col-sm-12 container" style="padding: 0px">
 								<button class="form-control btn btn-danger" data-dismiss="modal">Close</button>
