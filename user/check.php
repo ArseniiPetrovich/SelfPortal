@@ -16,8 +16,12 @@ include_once ("access.php");
         case "vm":
         case "vms":
         $cli_flag=false;
-		if (!server_db("SELECT `enabled` from `providers` where `title`='".$_POST['provider']."'")) {die ("DISABLED");}
-		$provider_id=server_db("SELECT id FROM `providers` where title='".$_POST['provider']."'");
+		if (!empty($_POST['provider']))
+		{
+			if (!server_db("SELECT `enabled` from `providers` where `title`='".$_POST['provider']."'")) {die ("DISABLED");}
+			$provider_id=mysqli_fetch_assoc(server_db("SELECT id FROM `providers` where title='".$_POST['provider']."'"));
+		}
+		else $_POST['provider']='';
         switch ($_POST['provider']) {
             case "openstack":
                 switch ($_POST['action']) {
@@ -54,6 +58,14 @@ include_once ("access.php");
                     case "info": $openstack_cli .=" server show '$_POST[id]' -f json";
                         $cli_flag=true;
                         break;
+					case "backupvm": if (mysqli_num_rows(server_db("SELECT * FROM `snapshots` where `vm_id` like '".$_POST['id']."'"))>0) {
+							echo "Snapshot for this VM already exists! Delete it first.";
+							return;
+						}
+						$openstack_cli .= " server backup create --type spsnapshot '".$_POST['id']."' -f json";
+						$cli_result=json_decode(shell_exec($openstack_cli));
+						$query="INSERT INTO `snapshots` VALUES ('".$cli_result->{'id'}."','".$_POST['name']."','".$_POST['id']."','".Date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','ENABLED',0)";
+						break;
                     case "stopvm": $openstack_cli .=" server stop '$_POST[id]'";
                         $cli_flag=true;
 						$multiquery=true;
@@ -97,15 +109,10 @@ include_once ("access.php");
 			case "vsphere":
 				switch ($_POST['action']) {
                     case "createserver":
-						/*if (server_db("SELECT * FROM `tasks` where `title` like '".$_POST['name']['name']."_%' where provider='$provider_id'") || server_db("SELECT * FROM `vms` where `title` ='".$_POST['name']['name']."' where provider='$provider_id'"))
-						{
-							server_db("INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='FAILURE'),0 from `providers` where `title`='vSphere'");
-							return;
-						}*/
-						$server_id=create_vsphere_vm($_POST['name']['image'],$_POST['name']['name'],$_SESSION['user']);
+						$server_id=create_vsphere_vm($_POST['name']['image'],$_POST['name']['name'],$_SESSION['user'],$_SESSION['user_id']);
                         if (isset($server_id)) {
                             if (!preg_match('/\s/',$server_id)){
-                            $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='BUILDING'),0 from `providers` where `title`='vSphere'";
+                            $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."','".$provider_id['id']."',`vms_statuses`.`id`,0 from `vms_statuses` where LOWER(`title`) like LOWER('BUILDING')";
 							shell_exec ('(sudo crontab -l -u root | grep -v "/modules/tasks.php --action vmupdate"; echo "* * * * * /usr/bin/php '.$_SERVER['DOCUMENT_ROOT'].'/modules/tasks.php --action vmupdate") | sudo crontab -u root -');
                             }
                             else {
@@ -113,12 +120,10 @@ include_once ("access.php");
                                 var_dump($_POST);
                                 $postdump = ob_get_clean();
                                 include_once $_SERVER['DOCUMENT_ROOT'].'/modules/tasks.php';
-                                ob_start();
                                 write_log(date('Y-m-d H:i:s')." [VSphere][ERROR] User ".$_SESSION['user']." (id ".$_SESSION['user_id'].") with access level ".$_SESSION['access']." tried to create VM in openstack. POST: ".$postdump.". VSphere message: ".$server_id);
                                 send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user with id ".$_SESSION['user_id']." tried to create VM in VSphere. Please, check it. Here is the details of his POST query:<pre> ".$postdump."</pre> And also here is the error, returned by VSphere: ".$server_id);
-                                ob_get_clean();
-								echo "VM cannot be created. Reason unknown. Admin team is already notified about your problem. Keep calm and wait for help.";
-                                $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status) SELECT '$server_id','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='FAILURE'),0 from `providers` where `title`='vSphere'";
+								echo "VM cannot be created. Reason: ".$server_id.". Admin team is already notified about your problem. Keep calm and wait for help.";
+                                $query="INSERT INTO `tasks` (id,user_id,title,exp_date,provider,status,comment) SELECT 'NULL','".$_SESSION['user_id']."','".$_POST['name']['name']."','".$_POST['name']['date']."','".$provider_id['id']."',`vms_statuses`.`id`,'$server_id' from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')";
                             }
                         }
                         else {
@@ -192,11 +197,7 @@ include_once ("access.php");
 						case "list":
 							//$openstack_cli .=" image list --property backup_type=spsnapshot";
                         	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
-							break;
-						case "add": 
-							$openstack_cli .= " server backup create --type spsnapshot ".$_POST['name'];
-							
-							break;
+							return;
 						case "terminate":
 							$openstack_cli .= "  image delete ".$_POST['id'];
 							$cli_flag=true;
@@ -226,8 +227,7 @@ include_once ("access.php");
 						case "list":
 							//$vsphere_cli .="snapshots.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
                         	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
-							break;
-						case "add":break;
+							return;
 						case "terminate":break;
 						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'"; break;
 						case "extend":
@@ -246,8 +246,15 @@ include_once ("access.php");
 					}
 					$cli=$vsphere_cli;
 					break;
+				default:
+					switch ($_POST['action']){
+						case "list":
+							//$vsphere_cli .="snapshots.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
+                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
+							return;
+					}
 			}
-			
+		break;	
         case "keys":
             switch ($_POST['action']){
                 case "list":
@@ -272,7 +279,7 @@ include_once ("access.php");
         case "notifications":
             switch ($_POST['action']){
                 case "list":
-                    $query="SELECT `title`,`exp_date`,`days`,`status`,'VM' FROM `vms`,`users`, (SELECT `vms`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `vms`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `vms`.`user_id`=`users`.`user_id` AND `days`.`id`= `vms`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `vms`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') AND `vms`.`status`!= (SELECT id from `vms_statuses` where title='TERMINATED') UNION SELECT `title`,`exp_date`,`days`,`status`,'task' FROM `tasks`,`users`, (SELECT `tasks`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `tasks`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `tasks`.`user_id`=`users`.`user_id` AND `days`.`id`= `tasks`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `tasks`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') AND `vms`.`status`!= (SELECT id from `vms_statuses` where title='TERMINATED') UNION SELECT concat(`site_name`,'.',`domain`),`stop_date`,`days`,`status`,'site' FROM `users`,`proxysites`,`domains`, (SELECT `site_id`, DATEDIFF(stop_date,CURDATE()) as days FROM `proxysites`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` AND `days`.`site_id`= `proxysites`.`site_id` AND `users`.`user_id`=".$_SESSION['user_id']." ORDER by `exp_date`";
+                    $query="SELECT `title`,`exp_date`,`days`,`vms`.`status`,'VM' FROM `vms`,`users`, (SELECT `vms`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `vms`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `vms`.`user_id`=`users`.`user_id` AND `days`.`id`= `vms`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `vms`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') AND `vms`.`status`!= (SELECT id from `vms_statuses` where title='TERMINATED') UNION SELECT `title`,`exp_date`,`days`,`status`,'task' FROM `tasks`,`users`, (SELECT `tasks`.`id`,DATEDIFF(exp_date,CURDATE()) as days FROM `tasks`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `tasks`.`user_id`=`users`.`user_id` AND `days`.`id`= `tasks`.`id` AND `users`.`user_id`=".$_SESSION['user_id']." AND `tasks`.`status`!=(SELECT id from `vms_statuses` where title='FAILURE') UNION SELECT concat(`site_name`,'.',`domain`),`exp_date`,`days`,`status`,'site' FROM `users`,`proxysites`,`domains`, (SELECT `site_id`, DATEDIFF(exp_date,CURDATE()) as days FROM `proxysites`) as days WHERE (days BETWEEN ".DAYS_BEFORE_DELETE." AND ".DAYS_BEFORE_DISABLE.") AND `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` AND `days`.`site_id`= `proxysites`.`site_id` AND `users`.`user_id`=".$_SESSION['user_id']." ORDER by `exp_date`";
                     break;
             }
             break;
@@ -284,16 +291,16 @@ include_once ("access.php");
                 $multiquery=true;
                 break;
             case "add":
-                if($_POST['id']=="true") $check=1;
+                if($_POST['checkbox']==="true") $check=1;
                     else $check=0;
-                $query = "INSERT INTO `domains` VALUES (NULL,'$_POST[name]',$check)";
+                $query = "INSERT INTO `domains` VALUES (NULL,'".$_POST['name']['title']."',$check)";
 				break;
             case "get":
                 $query = "SELECT `domain`,`shared` FROM `domains` WHERE `domain_id`= '$_POST[id]' ";
                 break;
             case "edit":
-                if (isset($_POST['publish'])) {
-                    if($_POST['publish']=="true") $check=1;
+                if (isset($_POST['checkbox'])) {
+                    if($_POST['checkbox']=="true") $check=1;
                         else $check=0;
                 }
                 else $check=0;
@@ -302,41 +309,95 @@ include_once ("access.php");
 				break;
             case "list":
                 $query = "SELECT * FROM `domains`";
-                if ($_POST['id']=="shared") $query.=" WHERE `shared`='1'";
+                if (!empty($_POST['id'])) {
+					if ($_POST['id']=="shared") $query.=" WHERE `shared`='1'";
+				}
                 break;
 		}
           break;
       case "users":
-			$users_table=server_db("SELECT `table_name` from `user_types` where title like '".$_POST['provider']."'");
+			if (!empty($_POST['provider'])) $users_table=mysqli_fetch_assoc(server_db("SELECT `table_name` from `user_types` where LOWER(`title`) like LOWER('".$_POST['provider']."')"))['table_name'];
+			else $_POST['provider']='';
 			switch ($_POST['provider'])
 			{
 				case "ldap":
 				switch ($_POST['action']){
             		case "list":
-                	$query = "SELECT `user_id`,`username`,`email`,``departments`.`title` FROM `users`,`departments` where `user_type`=(SELECT id from `user_types` where title like '".$_POST['provider']."') and `departments`.`id`=`users`.`department`";
-                	break;
+                		$query = "SELECT `user_id`,`username`,`email`,`departments`.`title` FROM `users`,`departments` where `user_type`=(SELECT id from `user_types` where LOWER(`title`) like LOWER('ldap')) and `departments`.`id`=`users`.`department`";
+                		break;
+					case "delete":
+						$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
+						break;
 				}
 				break;
-				case "internals":
+				case "internal":
                 switch ($_POST['action']){
             		case "list":
-                	$query = "SELECT `user_id`,`username`,`email`,`department` FROM `users` where `user_type`=(SELECT id from `user_types` where title like '".$_POST['provider']."') and `departments`.`id`=`users`.`department`";
-                	break;
+                		$query = "SELECT `users`.`user_id`,`username`,`email`,`departments`.`title` as department,`rights`.`title` as rights FROM `users`,`departments`,`rights`,`$users_table` where `user_type`=(SELECT id from `user_types` where LOWER(`title`) like LOWER('internal')) and `departments`.`id`=`users`.`department` and `rights`.`id`=`$users_table`.`rights` and `users`.`user_id`=`$users_table`.`global_uid`";
+                		break;
 					case "add": 
-					if (mysqli_num_rows(server_db("SELECT `username` from `users` where u like '".$_POST['provider']."'"))) return -1;
-					$multiquery=true; 
-					$query="SET @A=(SELECT id from `user_types` where `title` like '".$_POST['provider']."');
-					INSERT INTO `users` VALUES(NULL,'".$_POST['name']['username']."','".$_POST['name']['email']."','".$_POST['name']['department']."',@A,0,NULL,NULL,NULL);
-					SET @B=(SELECT id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
-					INSERT INTO `".$users_table."` VALUES (NULL,@B,password_hash('".$_POST['name']['password']."'),'".$_POST['name']['rights']."');";
-					break;
+						if (mysqli_num_rows(server_db("SELECT * from `users` where LOWER(`username`) like '".$_POST['name']['username']."'"))) return -1;
+						$multiquery=true; 
+						$query="SET @A=(SELECT id from `user_types` where LOWER(`title`) like LOWER('internal'));
+						INSERT INTO `users` VALUES(NULL,'".$_POST['name']['username']."','".$_POST['name']['email']."','".$_POST['name']['department']."',@A,0,NULL,NULL,NULL);
+						SET @B=(SELECT id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
+						INSERT INTO `".$users_table."` VALUES (NULL,@B,'".password_hash($_POST['name']['password'])."','".$_POST['name']['rights']."');";
+						break;
 					case "delete":
-					$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
-					break;
+						$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
+						break;
 				}
 				break;
 			}
       break;
+	  case "departments":
+	  	switch ($_POST['action']){
+        	case "list":
+           		$query = "SELECT * FROM `departments`";
+           		break;
+			case "add":
+           		$query = "INSERT INTO `departments` VALUES (NULL,'".$_POST['name']['title']."',".(!is_numeric($_POST['name']['proc_quota'])?"0":"ROUND(".$_POST['name']['proc_quota'].")").",".(!is_numeric($_POST['name']['ram_quota'])?"0":"ROUND(".$_POST['name']['ram_quota'].")").",".(!is_numeric($_POST['name']['disk_quota'])?"0":"ROUND(".$_POST['name']['disk_quota'].")").")";
+           		break;
+			case "update":
+           		$query = "UPDATE `departments` SET WHERE `Id`='".$_POST['id']."'";
+           		break;
+			case "delete":
+           		$query = "DELETE FROM `departments` WHERE `Id`='".$_POST['id']."'";
+           		break;
+		}
+	  break;
+	  case "ad_groups":
+	  	switch ($_POST['action']){
+        	case "list":
+           		$query = "SELECT `ad_groups`.`id` as id, `ad_groups`.`ldap_dn` as ldap_dn,`ad_groups`.`title` as title,`rights`.`title` as rights FROM `ad_groups`,`rights` where `ad_groups`.`rights`=`rights`.`id`";
+           		break;
+			case "add":
+           		$query = "INSERT INTO `ad_groups` VALUES (NULL,'".$_POST['name']['ldap_dn']."','".$_POST['name']['title']."','".$_POST['name']['rights']."')";
+           		break;
+			case "update":
+           		$query = "UPDATE `departments` SET `ldap_dn`='".$_POST['name']['ldap_dn']."', `title`='".$_POST['name']['title']."', `rights`='".$_POST['name']['rights']."' WHERE `Id`='".$_POST['id']."'";
+           		break;
+			case "delete":
+           		$query = "DELETE FROM `departments` WHERE Id='".$_POST['id']."'";
+           		break;
+		}
+	  break;
+	  case "rights":
+	  	switch ($_POST['action']){
+        	case "list":
+           		$query = "SELECT * FROM `rights`";
+           		break;
+			case "add":
+           		$query = "INSERT INTO `rights` VALUES (NULL,'".$_POST['name']['title']."')";
+           		break;
+			case "update":
+           		$query = "UPDATE `rights` SET `title`='".$_POST['name']['title']."' WHERE `Id`='".$_POST['id']."'";
+           		break;
+			case "delete":
+           		$query = "DELETE FROM `rights` WHERE Id='".$_POST['id']."'";
+           		break;
+		}
+	  break;
       case "blacklist":
             switch ($_POST['action']){
             case "list":
@@ -362,7 +423,7 @@ include_once ("access.php");
                   $flag=true;
                   break;
               case "list":
-                  $query = "SELECT `site_id`, `site_name`, `domain`,`rhost`,`rport`,`stop_date`, `status`, `username`, `proxysites`.`domain_id` FROM `proxysites`, `domains`,`users` WHERE `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` ";
+                  $query = "SELECT `site_id`, `site_name`, `domain`,`rhost`,`rport`,`exp_date`, `status`, `username`, `proxysites`.`domain_id` FROM `proxysites`, `domains`,`users` WHERE `proxysites`.`domain_id`=`domains`.`domain_id` AND `proxysites`.`user_id`=`users`.`user_id` ";
                   if ($_POST['id']!=null and $_POST['id'] == $_SESSION['user_id']) $query .= "AND `proxysites`.`user_id`='".$_POST['id']."'";
                   break;
               case "delete":

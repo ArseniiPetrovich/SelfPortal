@@ -183,7 +183,7 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 
 						<div class="modal-footer form-row">
 							<div class="col-sm-12 container" style="padding: 0px 0px 10px 0px">
-								<button type="submit" class="form-control btn btn-primary disabled">Submit</button>
+								<button type="submit" class="form-control btn btn-primary">Submit</button>
 							</div>
 							<div class="col-sm-12 container" style="padding: 0px">
 								<button class="form-control btn btn-danger" data-dismiss="modal">Close</button>
@@ -260,8 +260,8 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 							<?php
                     echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Profile\"><i class=\"fa fa-user fa-fw\"></i> User Profile</a></li>";
                     ?>
-								<?php if($_SESSION['access']==2) {
-                    echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Portal settings\"><i class=\"fa fa-gear fa-fw\"></i>Admin panel</a></li>";}
+								<?php require_once("access.php"); if(access_level("all","all")) {
+                    echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Portal settings\"><i class=\"fa fa-gear fa-fw\"></i> Admin panel</a></li>";}
                     ?>
 								<li class="divider"></li>
 								<li><a href="/index.php?out=logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a> </li>
@@ -309,6 +309,12 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 												<ul class="nav nav-third-level">';		
 											if (defined('OS_AUTH_URL')) echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Openstack VMs\">Openstack VMs</a></li>";
 											if (defined('VMW_SERVER'))  echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=vSphere VMs\">vSphere VMs</a></li>";
+											echo '</ul></li>';
+											echo '<li>
+												<a href="#">Snapshots <span class="fa arrow"></span></a>
+												<ul class="nav nav-third-level">';		
+											if (defined('OS_AUTH_URL')) echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Openstack Snapshots\">Openstack Snapshots</a></li>";
+											if (defined('VMW_SERVER'))  echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=vSphere Snapshots\">vSphere Snapshots</a></li>";
 											echo '</ul></li>';
 										}									
                                     ?>				
@@ -473,14 +479,23 @@ else switch ($_GET['dashboard']){
                                     </li>
                                     <li class=\"\"><a href=\"#domains\" data-toggle=\"tab\" aria-expanded=\"false\">Public domains</a>
                                     </li>
-                                    <li class=\"\"><a href=\"#users\" data-toggle=\"tab\" aria-expanded=\"false\">Users</a>
-                                    </li>
                                     <li class=\"\"><a href=\"#sites_table_div\" data-toggle=\"tab\" aria-expanded=\"false\">Sites</a>
                                     </li>";
-                                    if (defined('OS_AUTH_URL')) echo "<li class=\"\"><a href=\"#openstack_vm_div\" data-toggle=\"tab\" aria-expanded=\"false\">OpenStack VMs</a>
+                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#admin_vm_div\" data-toggle=\"tab\" aria-expanded=\"false\">VMs</a>
                                     </li>";
-                                    if (defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#vsphere_vm_div\" data-toggle=\"tab\" aria-expanded=\"false\">vSphere VMs</a>
+                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#admin_snapshots_div\" data-toggle=\"tab\" aria-expanded=\"false\">Snapshots</a>
+                                    </li>
+									<li class=\"\"><a href=\"#ldap_users\" data-toggle=\"tab\" aria-expanded=\"false\">LDAP Users</a>
+                                    </li>
+									<li class=\"\"><a href=\"#internal_users\" data-toggle=\"tab\" aria-expanded=\"false\">Internal Users</a>
+                                    </li>
+									<li class=\"\"><a href=\"#departments\" data-toggle=\"tab\" aria-expanded=\"false\">Departments</a>
+                                    </li>
+									<li class=\"\"><a href=\"#rights\" data-toggle=\"tab\" aria-expanded=\"false\">Rights</a>
+                                    </li>
+									<li class=\"\"><a href=\"#ad_groups\" data-toggle=\"tab\" aria-expanded=\"false\">AD Groups</a>
                                     </li>";
+		
                                 echo "</ul>
 
                                 <!-- Tab panes -->
@@ -491,17 +506,29 @@ else switch ($_GET['dashboard']){
                                     <div class=\"tab-pane fade\" id=\"domains\">";
                                         echo "<script> js_panel_generate(\"domains\"); </script>";
                                         echo "</div>
-                                    <div class=\"tab-pane fade\" id=\"users\">";
-                                        echo "<script> js_panel_generate(\"users\"); </script>";
-                                        echo "</div>
                                     <div class=\"tab-pane fade\" id=\"sites_table_div\">";
                                         echo "<script> js_panel_generate(\"site\"); </script>";
                                         echo "</div>
-                                    <div class=\"tab-pane fade\" id=\"openstack_vm_div\" panel=\"admin\">";
-                                        echo "<script> js_panel_generate(\"openstackvms\"); </script>";
+                                    <div class=\"tab-pane fade\" id=\"admin_vm_div\" panel=\"admin\">";
+                                        echo "<script> js_panel_generate(\"vms\"); </script>";
                                         echo "</div>
-									<div class=\"tab-pane fade\" id=\"vsphere_vm_div\" panel=\"admin\">";
-                                        echo "<script> js_panel_generate(\"vspherevms\"); </script>";
+									<div class=\"tab-pane fade\" id=\"admin_snapshots_div\" panel=\"admin\">";
+                                        echo "<script> js_panel_generate(\"snapshots\"); </script>";
+                                        echo "</div>
+									<div class=\"tab-pane fade\" id=\"departments\">";
+                                        echo "<script> js_panel_generate(\"departments\"); </script>";
+                                        echo "</div>
+									<div class=\"tab-pane fade\" id=\"ldap_users\">";
+                                        echo "<script> js_panel_generate(\"ldap_users\"); </script>";
+                                        echo "</div>
+									<div class=\"tab-pane fade\" id=\"internal_users\">";
+                                        echo "<script> js_panel_generate(\"internal_users\"); </script>";
+                                        echo "</div>
+									<div class=\"tab-pane fade\" id=\"rights\">";
+                                        echo "<script> js_panel_generate(\"rights\"); </script>";
+                                        echo "</div>
+									<div class=\"tab-pane fade\" id=\"ad_groups\">";
+                                        echo "<script> js_panel_generate(\"ad_groups\"); </script>";
                                         echo "</div>
                                 </div>
                             </div>";
@@ -557,6 +584,12 @@ else switch ($_GET['dashboard']){
 				 break;
 			 case "vSphere VMs":
 		         echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" data-provider=\"vsphere\" class=\"btn btn-primary btn-vm-add\">Launch Instance</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspherevms')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vsphere_vm_div\" panel=\"user\"><script>js_panel_generate(\"vspherevms\"); </script></div>";
+				 break;
+			case "Openstack Snapshots":
+		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('openstacksnaphsots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"openstack_snapshots_div\" panel=\"user\"><script>js_panel_generate(\"openstacksnapshots\"); </script></div>";
+				 break;
+			case "vSphere Snapshots":
+		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspheresnapshots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vsphere_snapshots_div\" panel=\"user\"><script>js_panel_generate(\"vspheresnapshots\"); </script></div>";
 				 break;
 }
 ?>

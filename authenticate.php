@@ -92,7 +92,7 @@ function authenticate($user, $password) {
 		$_SESSION['access']=0;
 		foreach ($int_users as $int_user)
 		{
-			if ($int_user===$username) 
+			if ($int_user===$user) 
 				if (password_verify ($password , $int_users['passwd'])) 
 				{
 					if ($int_users['rights']>$_SESSION['access'])

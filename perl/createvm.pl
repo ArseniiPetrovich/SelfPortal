@@ -50,6 +50,11 @@ my %opts = (
                 help => "Creator name",
                 required => 1,
         },
+		user_id => {
+                type => "=s",
+                help => "Creator name",
+                required => 1,
+        },
         datastore => {
                 type => "=s",
                 help => "Name of datastore in vCenter",
@@ -68,7 +73,9 @@ Opts::parse();
 sub deploy_template() {
         my ($vmtemplate, $datastore, $resourcepool, $folder, $vm_view, $vmname);
 
-		$vmname = Opts::get_option('vmname').'_'.Opts::get_option('user');
+		$vmname = Opts::get_option('vmname');
+		
+		
         $datastore = Vim::find_entity_view( view_type => 'Datastore', filter => { 'name' => Opts::get_option('datastore') } );
 		$resourcepool = Vim::find_entity_view( view_type => 'ResourcePool', filter => { 'name' => Opts::get_option('resourcepool') } );
         $vm_view = Vim::find_entity_view( view_type => 'VirtualMachine', filter => { 'config.uuid' => Opts::get_option('vmtemplate') } );
@@ -84,6 +91,7 @@ sub deploy_template() {
         if (Opts::get_option('folder')) {
                   my $folder_name = Opts::get_option('folder');
                   $folder = Vim::find_entity_view( view_type => 'Folder', filter => { 'name' => $folder_name } );
+				  $folder=$folder->CreateFolder("[Altoros] /123");
         } else {
                   $folder = $vm_view->parent;
         }
@@ -107,15 +115,16 @@ sub update_task()
 	if ($@) { print 1; }
 	elsif ($task->state->val eq 'success') {
 		my $uuid=Vim::get_view(mo_ref=>$task->result)->summary->config->uuid;
-		my $rename = renamesub ($uuid,$user);
-		if ($rename ne -1 && $rename ne "error")
-		{
+	#	my $rename = renamesub ($uuid,$user);
+	#	if ($rename ne -1 && $rename ne "error")
+	#	{
 			my %uuid = (
-				'ID' => $uuid,
+				'ID' => -2,
+				'VM_ID' => $uuid,
 			);
 			print encode_json \%uuid;
-		}
-		else {print -2; return -2};
+	#	}
+	#	else {print -2; return -2};
 	}
 	elsif ($task->state->val eq 'error') {print $task->error->localizedMessage;}
 	elsif ($task->state->val eq 'running') {print 0; return 0;}
@@ -145,7 +154,7 @@ sub renamesub
 	{
 		$attempts=$attempts+1;
 		sleep 1;
-		$state_rename=$task->state->val;
+		$state_rename=$task_rename->state->val;
 	}
 	if ($attempts ge 10) { print -1; return -1; }
 	print $state_rename;
