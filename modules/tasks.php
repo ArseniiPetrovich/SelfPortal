@@ -71,9 +71,9 @@ function vmupdate()
 				switch ($error[0])
 				{
 					case -2:
-						$query="INSERT INTO `vms` SELECT 'NULL','NULL','$item[user_id]','$error[1]',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$item[id]'";
+						$query="INSERT INTO `vms` SELECT ,'$error[1]','$item[user_id]',`title`,`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$item[id]'";
 						db_query($query);
-						$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.'";
+						$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',cleared=1";
 						db_query($query);
 						break;
 					case -1: 
@@ -96,20 +96,20 @@ function vmupdate()
 
 function vmdebug($task,$vmname,$user,$user_id,$user_email)
 {
-	$cli="/usr/bin/perl ".dirname(__FILE__)."/../perl/listvms.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmalias ".$vmname." --folder ".$user."_".$user_id." --datacenter '".VMW_DATACENTER."'";
+	$cli="/usr/bin/perl ".dirname(__FILE__)."/../perl/listvms.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmalias ".$vmname." --folder '".VMW_VM_FOLDER."' --datacenter '".VMW_DATACENTER."'";
 	$result=shell_exec($cli);
-	if (!empty($result))
+	if (!empty($result) && !preg_match('/\s/',$result))
 	{
-		$query="INSERT INTO `vms` SELECT 'NULL','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$task'";
+		$query="INSERT INTO `vms` SELECT '$result','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$task'";
 		db_query($query);
-		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.'";
+		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',`cleared`=1";
 		db_query($query);
 		send_notification ($user_email,'Hi! Your VM called "'.$vmname.'" is ready.<br><hr>Sincerely yours, SelfPortal. In case of any errors - please, contact your system administrators via '.MAIL_ADMIN);
 		return 0;
 	}
 	else {
 		send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user named ".$user." tried to create VM '".$vmname."' in VSphere. I was not able to find task '".$task."' or a vm by it's name. Please, check it.");
-		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created due to unknown reason.'";
+		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created due to unknown reason. Debug: $result'";
 		db_query($query);
 		return 1;
 	}
@@ -230,7 +230,7 @@ function shutdown_vm(){
 				$cli=$GLOBALS['openstack_cli']." server stop '".$vm['id']."' 2>&1";
 				break;
 			case "vsphere":
-				$cli=$GLOBALS['vsphere_cli']."--vmname ".$vm['id']." --action Stop";       		
+				$cli=$GLOBALS['vsphere_cli']." --action Stop --vmname ".$vm['id'];       		
 				break;
 		}
 		$cli_result=shell_exec($cli);
@@ -256,7 +256,7 @@ function terminate_vm(){
 				$cli=$GLOBALS['openstack_cli']." server delete ".$vm['id']." 2>&1";
 				break;
 			case "vsphere":
-				$cli=$GLOBALS['vsphere_cli']."--vmname ".$vm['id']." --action Destroy";
+				$cli=$GLOBALS['vsphere_cli']." --action Destroy --vmname ".$vm['id'];
 				break;
 		}
 		$cli_result=shell_exec($cli);

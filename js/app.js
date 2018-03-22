@@ -3,7 +3,6 @@ var typingTimer = null;
 var panelTimer = null;
 var flavorlist = null;
 var departmentlist = null;
-var rightslist = null;
 
 $(document).on("change keyup", "textarea#new_key_input", function (event) {
 	$("#new_key_title").val($(event.target).val().split(" ")[1]);
@@ -280,6 +279,38 @@ $(document).on("keyup change", "form.form_error", function (event) {
 	target = $(event.target);
 	typingTimer = setTimeout("form_change_handler(target);", 1000);
 });
+
+$(document).on("click", "[data-action-snapshots]", function (event) {
+	$('#page-wrapper > div > button').addClass('disabled');
+	$('[data-status-id=' + $(event.target).closest('ul').attr('id') + ']').html('<i class="fa fa-spinner fa-spin" style="font-size:24px"></i>');
+	$(event.target).closest('tr').children('td').each(function () {
+		$(this).find('button').addClass('disabled');
+	});
+	$.post(
+			'check.php', {
+				id: $(event.target).closest('ul').attr('id'),
+				vmid: $(event.target).closest('ul').attr('vmid'),
+				action: $(event.target).attr('data-action-snapshots'),
+				provider: $(event.target).closest('ul').attr('data-provider-snapshots'),
+				type: "snapshots"
+			})
+		.done(function (data, status) {
+			clearTimeout(panelTimer);
+			panelTimer = setTimeout(function () {
+				js_panel_generate($('[id*="_snapshots_div"]').attr('panel')+'snapshots');
+				if (data) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
+							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
+							data +
+							'</div>');
+				$('#page-wrapper > div > button').removeClass('disabled');
+			}, 10000);
+
+		})
+		.fail(function () {
+			window.location.replace("/index.php?out=logout");
+		});
+});
+
 $(document).on("click", "[data-action-vm]", function (event) {
 	$('#page-wrapper > div > button').addClass('disabled');
 	$('[data-status-id=' + $(event.target).closest('ul').attr('id') + ']').html('<i class="fa fa-spinner fa-spin" style="font-size:24px"></i>');
@@ -297,6 +328,10 @@ $(document).on("click", "[data-action-vm]", function (event) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
 				js_panel_generate($(event.target).closest('ul').attr('data-provider-vm')+"vms");
+				$("#infos").html('<div class="alert alert-info alert-dismissable">' +
+							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
+							data +
+							'</div>');
 				$('#page-wrapper > div > button').removeClass('disabled');
 			}, 10000);
 
@@ -305,6 +340,7 @@ $(document).on("click", "[data-action-vm]", function (event) {
 			window.location.replace("/index.php?out=logout");
 		});
 });
+
 $(document).on("click", "[data-action-vm-extend]", function (event) {
 	$('#page-wrapper > div > button').addClass('disabled');
 	$('[data-status-id=' + $(event.target).closest('ul').attr('vm_id') + ']').html('<i class="fa fa-spinner fa-spin" style="font-size:24px"></i>');
@@ -351,79 +387,6 @@ $(document).on("click", "[data-action-vm-delete]", function (event) {
 		'</div></div></div></div></div>'
 	$('#temp_modals').html(modal);
 	$('#temp_modal').modal();
-
-});
-
-$(document).on("click", "[data-action-snapshots]", function (event) {
-	modal = '<div class="modal fade" id="temp_modal" role="dialog">' +
-		'<div class="modal-dialog modal-sm">' +
-		'<div class="modal-content">' +
-		'<div class="modal-header">' +
-		'<button type="button" class="close" data-dismiss="modal">&times;</button>' +
-		'<h4 class="modal-title">Are you sure?</h4>' +
-		'</div>' +
-		'<div class="modal-body">' +
-		'<p>This action will remove VM forever.</p>' +
-		'</div>' +
-		'<div class="modal-footer">' +
-		'<div class="col-sm-6">' +
-		'<ul id="' + $(event.target).closest('ul').attr('id') + '" data-provider-snapshots="' + $(event.target).closest('ul').attr('data-provider-snapshots') + '">' +
-		'<button type="button" class="btn btn-danger" data-action-vm="terminatesnaphots" data-dismiss="modal">Terminate</button>' +
-		'</ul>' +
-		'</div>' +
-		'<div class="col-sm-6">' +
-		'<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>' +
-		'</div></div></div></div></div>'
-	$('#temp_modals').html(modal);
-	$('#temp_modal').modal();
-
-});
-
-$(document).on("click", "[data-action-vm-backup]", function (event) {
-	modal = '<div class="modal fade" id="temp_modal" role="dialog">' +
-		'<div class="modal-dialog modal-sm">' +
-		'<div class="modal-content">' +
-		'<form role="form" novalidate class="form_backup form_error" data-type="backupvm" provider="' + $(event.target).closest('ul').attr('data-provider-vm') +'" vmid="'+ $(event.target).closest('ul').attr('id')+'" id="vms_backup_form">' +
-		'<div class="modal-header">' +
-		'<button type="button" class="close" data-dismiss="modal">&times;</button>' +
-		'<h4 class="modal-title">Enter VM name</h4>' +
-		'</div>' +
-		'<div class="modal-body">' +
-		'<p><input type="text" required class="form-control form-name-check" name="name" id="vms_backup_name" data-validator-name="^([A-Za-z0-9])([A-Za-z0-9-])+$"></p>' +
-		'</div>' +
-		'<div class="modal-footer">' +
-		'<div class="col-sm-6">' +
-		'<button type="submit" class="btn btn-success">Backup</button>' +
-		'</div>' +
-		'<div class="col-sm-6">' +
-		'<button type="cancel" class="btn btn-default" data-dismiss="modal">Cancel</button>' +
-		'</div></div></form></div></div></div>';
-	$('#temp_modals').html(modal);
-	$('#temp_modal').modal();
-
-});
-
-$(document).on("submit", "form.form_backup", function (event) {
-		event.preventDefault();
-		event.stopImmediatePropagation();
-		$.post(
-			'check.php', {
-				id: $(event.target).attr('vmid'),
-				name: $("#vms_backup_name").val(),
-				action: $(event.target).attr('data-type'),
-				provider: $(event.target).attr('provider'),
-				type: "vm"
-			})
-		.done(function (data, status) {
-			$('#temp_modal').hide();
-			clearTimeout(panelTimer);
-			panelTimer = setTimeout(function () {
-			//location.reload();
-			}, 2000);
-		})
-		.fail(function () {
-			window.location.replace("/index.php?out=logout");
-		});
 
 });
 
@@ -700,7 +663,7 @@ function js_panel_generate(tumbler, returndata = null) {
 		case "vspheresnapshots":
 			js_panel_generate_snapshots(returndata, "vsphere");
 			break;
-		case "snapshots":
+		case "adminsnapshots":
 			js_panel_generate_snapshots(returndata,"admin");
 			break;
 		case "departments":
@@ -738,11 +701,10 @@ function js_panel_generate_snapshots(returndata, provider) {
 			var body =
 				'<p><table id="snapshots_list_'+provider+'" class="display" cellspacing="0" width="100%">' +
 				'<thead><tr>' +
-				'<th>Snapshot Name</th>' +
-				'<th>Snapshot DB Name</th>' +
 				'<th>VM Name</th>' +
-				'<th>Shutdown Date</th>' +
-				'<th>Action</th>';
+				'<th>Creation date</th>' +
+				'<th>Expiration Date</th>' +
+				'<th>Actions</th>';
 			if ($('#' + provider + '_snapshots_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
@@ -750,11 +712,10 @@ function js_panel_generate_snapshots(returndata, provider) {
 			}
 			body += '</tr></thead>' +
 				'<tfoot><tr>' +
-				'<th>Snapshot Service Name</th>' +
-				'<th>Snapshot DB Name</th>' +
 				'<th>VM Name</th>' +
-				'<th>Shutdown Date</th>' +
-				'<th>Action</th>';
+				'<th>Creation date</th>' +
+				'<th>Expiration Date</th>' +
+				'<th>Actions</th>';
 			if ($('#' + provider + '_snapshots_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
@@ -768,25 +729,22 @@ function js_panel_generate_snapshots(returndata, provider) {
 				jQuery.each(arr, function () {
 					body +=
 						'<tr><td>' +
-						$(this)[0]["Name"] +
+						$(this)[0]["name"] +
 						'</td><td>' +
-						$(this)[0]["dbname"] +
+						Date($(this)[0]["createddate"]).toString() +
 						'</td><td>' +
-						$(this)[0]["vmname"] +
-						'</td><td>'+
+						$(this)[0]["exp_date"] +
 					'<div class="dropdown">';
 					var extendlimit = new Date();
-					var dateVM = new Date($(this)[0]["date"]);
+					var dateVM = new Date($(this)[0]["createddate"]);
 					extendlimit.setDate(extendlimit.getDate() + parseInt($(this)[0]['extendlimit']));
-					if (typeof $(this)[0]["date"] !== typeof undefined) {
-						body += $(this)[0]["date"];
+					if (typeof $(this)[0]["createddate"] !== typeof undefined) {
 						if (dateVM < extendlimit) {
 							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown">+' +
 								'</button>' +
-								'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + provider + '" snapshots_id="' + $(this)[0]["ID"] + '">' +
+								'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + $(this)[0]["provider"].toLowerCase() + '" snapshots_id="' + $(this)[0]["id"] + '">' +
 								'<li><a href="#" data-action-snapshots-extend="1">+1 day</a></li>' +
-								'<li><a href="#" data-action-snapshots-extend="5" >+5 days</a></li>' +
-								'<li><a href="#" data-action-snapshots-extend="10">+10 days</a></li>' +
+								'<li><a href="#" data-action-snapshots-extend="3" >+3 days</a></li>' +
 								'</ul> ';
 						}
 					}
@@ -794,11 +752,11 @@ function js_panel_generate_snapshots(returndata, provider) {
 						'<div class="dropdown">' +
 						'<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">Actions' +
 						'<span class="caret"></span></button>' +
-						'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + provider + '" id="' + $(this)[0]["ID"] + '">';
-					if ($(this)[0]["Status"].toLowerCase()!=="terminated")	body +=
-						'<li><a href="#" data-action-snapshots="restoresnapshots">Restore</a></li>' +
-						'<li><a href="#" data-action-snapshots="terminatesnapshots">Terminate</a></li>';
-					else body +='<li><a href="#" data-action-snapshots-clear="clearsnapshots">Clear</a></li>';
+						'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["id"] + '" vmid="' + $(this)[0]["vmid"] + '">';
+					if (!$(this)[0]["Status"] || !$(this)[0]["Status"].includes("terminated"))	body +=
+						'<li><a href="#" data-action-snapshots="restore">Restore</a></li>' +
+						'<li><a href="#" data-action-snapshots="terminate">Terminate</a></li>';
+					else body +='<li><a href="#" data-action-snapshots-clear="clear">Clear</a></li>';
 					body +=
 						'</ul> </div>' +
 						'</td>';	
@@ -836,7 +794,7 @@ function js_panel_generate_ad_groups(returndata) {
 				'<div class="form-group">' +
 				'<input type="text" class="form-control" id="ad_groups_add_ldap_dn" name="ldap_dn" placeholder="OU DN (like OU=Users,DC=example,DC=com) (required)" required">' +
 				'<input type="text" class="form-control" id="ad_groups_add_title" name="title" placeholder="Group (required)" required">' +
-				'<select class="form-control" required name="rights" id="ad_groups_add_rights_list">'+rightslist+'</select>' +
+				'<select class="form-control" required name="rights" id="ad_groups_add_rights_list"></select>' +
 				'</div>' +
 				'<button type="submit" class="btn btn-primary">Add</button>' +
 				'</form>' +
@@ -859,19 +817,38 @@ function js_panel_generate_ad_groups(returndata) {
 					'</td><td>' +
 					$(this)[0].rights +				
 					'</td>' +
-					'<td>'+'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>'
 			$('#ad_groups').html(body);
 			$('#ad_groups_list').DataTable();
+			
+			var retbody = $.post('check.php', {
+				action: "list",
+				type: "rights",
+			})
+			.done(function (data, status) {
+				var arr = JSON.parse(data);
+				select = document.getElementById('ad_groups_add_rights_list');
+				jQuery.each(arr, function () {
+					option = document.createElement( 'option' );
+    				option.value = this.id;
+					option.text = this.title;
+    				select.add( option );
+				});
+			})
+			.fail(function () {
+				window.location.replace("/index.php?out=logout");
+			});	
+			
 		})
 		.fail(function () {
 			window.location.replace("/index.php?out=logout");
 		});	
 }
 
-function js_panel_generate_rights(returndata) {
+/*function js_panel_generate_rights(returndata) {
 	var retbody = $.post('check.php', {
 			action: "list",
 			type: "rights",
@@ -905,7 +882,7 @@ function js_panel_generate_rights(returndata) {
 		.fail(function () {
 			window.location.replace("/index.php?out=logout");
 		});
-}
+}*/
 
 function js_panel_generate_sshkeys(returndata) {
 
@@ -1017,39 +994,18 @@ function js_panel_generate_vms(returndata, provider) {
 						'<tr><td>' +
 						$(this)[0]["Name"].split("_")[0] +
 						'</td><td>' +
-						($(this)[0]["Image Name"]=="Deploying"?'<span class="label label-default">DEPLOYING IMAGE</span>':$(this)[0]["Image Name"]==null?'<span class="label label-default">UNKNOWN</span>':$(this)[0]["Image Name"]) +
+						$(this)[0]["Image Name"] +
 						'</td><td>';
+					
 					if ($(this)[0]["Networks"] != null) {
-						if (typeof $(this)[0]["Networks"].split(",")[1] !== typeof undefined)
+						if (typeof $(this)[0]["Networks"].split(",") !== typeof undefined)
 							body += $(this)[0]["Networks"].split(",")[$(this)[0]["Networks"].split(",").length-1];
-						else if ($(this)[0]["Status"] == "ACTIVE") body += "<button data-provider-vm=\"" + provider + "\" class=\"btn btn-primary btn-xs assignip\" id=\"" + $(this)[0]["ID"] + "\">Assign floating IP</button> ";
-						else if ($(this)[0]["Status"] == "poweredOn") body += $(this)[0]["Networks"];
+						else if ($(this)[0]["Status"].includes("ACTIVE") && $(this)[0]["provider"].toLowerCase().includes('openstack')) body += "<button data-provider-vm=\"" + $(this)[0]["provider"].toLowerCase() + "\" class=\"btn btn-primary btn-xs assignip\" id=\"" + $(this)[0]["ID"] + "\">Assign floating IP</button> ";
 						else body += "No floating IP assigned";
-					} else body += '<span class="label label-default">UNKNOWN</span>';
-					body += '</td><td><div data-status-id="' + $(this)[0]["ID"] + '">';
-					switch ($(this)[0]["Status"]) {
-						case "ACTIVE":
-						case "poweredOn":
-							body += '<span class="label label-success">ACTIVE';
-							break;
-						case "SHUTOFF":
-						case "poweredOff":
-							body += '<span class="label label-warning">SHUTOFF';
-							break;
-						case "Building":
-							body += '<span class="label label-default">BUILDING';
-							break;
-						case "TERMINATED":
-							body += '<span class="label label-danger">TERMINATED';
-							break;
-						case "MIGRATING":
-						case "RESIZING":
-							body += '<span class="label label-warning">MAINTENANCE';
-							break;
-						default:
-							body += '<span class="label label-danger">FAILURE';
-					};
-					body +='</span></div></div></td><td><div class="dropdown">';
+					}
+					else body += '<span class="label label-default">UNKNOWN</span>';
+					
+					body += '</td><td><div data-status-id="' + $(this)[0]["ID"] + '">'+$(this)[0]["Status"]+'</span></div></div></td><td><div class="dropdown">';
 					var extendlimit = new Date();
 					var dateVM = new Date($(this)[0]["date"]);
 					extendlimit.setDate(extendlimit.getDate() + parseInt($(this)[0]['extendlimit']));
@@ -1058,7 +1014,7 @@ function js_panel_generate_vms(returndata, provider) {
 						if (dateVM < extendlimit) {
 							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown">+' +
 								'</button>' +
-								'<ul class="dropdown-menu vm-actions" data-provider-vm="' + provider + '" vm_id="' + $(this)[0]["ID"] + '">' +
+								'<ul class="dropdown-menu vm-actions" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" vm_id="' + $(this)[0]["ID"] + '">' +
 								'<li><a href="#" data-action-vm-extend="1">+1 day</a></li>' +
 								'<li><a href="#" data-action-vm-extend="5" >+5 days</a></li>' +
 								'<li><a href="#" data-action-vm-extend="10">+10 days</a></li>' +
@@ -1069,11 +1025,11 @@ function js_panel_generate_vms(returndata, provider) {
 						'<div class="dropdown">' +
 						'<button class="btn btn-primary btn-sm dropdown-toggle '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" type="button" data-toggle="dropdown">Actions' +
 						'<span class="caret"></span></button>' +
-						'<ul class="dropdown-menu vm-actions '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" data-provider-vm="' + provider + '" id="' + $(this)[0]["ID"] + '">';
-					if ($(this)[0]["Status"]=="TERMINATED" || $(this)[0]["Status"]=="FAILURE") {
+						'<ul class="dropdown-menu vm-actions '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["ID"] + '">';
+					if ($(this)[0]["Status"].includes("TERMINATED") || $(this)[0]["Status"].includes("FAILURE")) {
 						body += '<li><a href="#" data-action-vm="clearvm">Remove</a></li>';
 					}
-					else if ($(this)[0]["Status"]=="MIGRATING" || $(this)[0]["Status"]=="RESIZING") { body += '<li><a href="#" data-action-vminfo="info">Info</a></li>';}
+					else if ($(this)[0]["Status"].includes("MAINTENANCE")) { body += '<li><a href="#" data-action-vminfo="info">Info</a></li>';}
 					else {
 						body +=
 						'<li><a href="#" data-action-vminfo="info">Info</a></li>' +
@@ -1081,7 +1037,7 @@ function js_panel_generate_vms(returndata, provider) {
 						'<li><a href="#" data-action-vm="startvm" >Start</a></li>' +
 						'<li><a href="#" data-action-vm="stopvm">Stop</a></li>' +
 						'<li><a href="#" data-action-vm="rebootvm">Reboot</a></li>' +
-						'<li><a href="#" data-action-vm-backup="backup">Backup</a></li>' +
+						'<li><a href="#" data-action-vm="backupvm">Backup</a></li>' +
 						'<li><a href="#" data-action-vm-delete="terminatevm">Terminate</a></li>';	
 					}
 					body +=
@@ -1156,7 +1112,7 @@ function js_panel_generate_users(returndata,provider) {
 					$(this)[0].department +
 					'</td>' +
 					(typeof($(this)[0].rights)!==typeof(undefined) ? '<td>'+$(this)[0].rights+'</td>' : '') +
-					'<td>'+(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+*/'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>';
@@ -1212,7 +1168,7 @@ function js_panel_generate_departments(returndata) {
 					'</td><td>' +
 					$(this)[0].disk_quota +				
 					'</td>' +
-					'<td>'+'<button type="button" id="departments ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+'<button type="button" id="departments ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*'<button type="button" id="departments ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" id="departments ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>'

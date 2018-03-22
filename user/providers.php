@@ -28,9 +28,28 @@ function fetch($entity,$provider)
 	}
 }
 
+
 function get_snapshots($panel,$provider)
 {
-	$query="SELECT `snapshot_id` as ID, `snapshots`.`name`, `vms`.`title` as vmname, `snapshots`.`exp_date`, `providers`.`title` as provider, `snapshots`.`status`, `users`.`username` FROM `vms`,`snapshots`,`providers`,`users` WHERE `snapshots`.`cleared`=0 AND `users`.`user_id`=`vms`.`user_id` AND `snapshots`.`vm_id`=`vms`.`id` AND `snapshots`.`provider`=`providers`.`id`";
+	
+	function fetch_openstack_snapshots()
+	{
+		$snapshots=json_decode(shell_exec($GLOBALS['openstack_cli']." image list --property backup_type=spsnapshot -f json")); 
+		foreach ($snapshots as $snapshot => $shot){
+			$snapshots[$snapshot]=json_decode(shell_exec($GLOBALS['openstack_cli']." image show $shot->ID -f json")); 
+			$snapshots[$snapshot]->createddate=$snapshots[$snapshot]->created_at;
+		}
+		if ($snapshots) $snapshots=set_value_in_whole_array($snapshots,"owner","undefined");
+		return set_value_in_whole_array ($snapshots,"provider","OpenStack");
+	}
+	
+	function fetch_vsphere_snapshots()
+	{
+		$snapshots=json_decode(shell_exec($GLOBALS['vsphere_cli']."snapshotmanager.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --operation list")); 
+		return set_value_in_whole_array ($snapshots,"provider","vSphere");
+	}
+	
+	$query="SELECT `snapshot_id` as ID, `vms`.`title` as vmname, `vms`.`id` as vmid, `snapshots`.`exp_date`, `providers`.`title` as provider, `snapshots`.`status`, `users`.`username` FROM `vms`,`snapshots`,`providers`,`users` WHERE `snapshots`.`cleared`=0 AND `users`.`user_id`=`vms`.`user_id` AND `snapshots`.`vm_id`=`vms`.`id` AND `snapshots`.`provider`=`providers`.`id`";
 	if (!empty($provider))
 	{
 		$query.=" AND `snapshots`.`provider`=(SELECT `Id` from `providers` where LOWER(`title`) like LOWER('".$provider."'))";
@@ -44,40 +63,64 @@ function get_snapshots($panel,$provider)
 	
 	switch ($provider)
 	{
-		case "openstack": $openstack_snapshots=json_decode(shell_exec($GLOBALS['openstack_cli']." image list --property backup_type=spsnapshot -f json")); break;
-		//case "vsphere": $vms=json_decode(shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'")); break;
-		default: $openstack_snapshots=json_decode(shell_exec($GLOBALS['openstack_cli']." image list --property backup_type=spsnapshot -f json")); /*$vsphere_snapshots=shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'"); */break;
+		case "openstack": 
+			$snapshots=fetch_openstack_snapshots();
+			break;
+		case "vsphere": 
+			$snapshots=fetch_vsphere_snapshots();
+			break;
+		default: 
+			$openstack_snapshots=fetch_openstack_snapshots();
+			$vsphere_snapshots=fetch_vsphere_snapshots();
+			$snapshots = (object) array_merge((array) $openstack_snapshots, (array) $vsphere_snapshots); 
+			break;
 	}
 	
 	$snapshot_in_db=server_db($query);	
-
-    foreach ($openstack_snapshots as $snapshot){
+    if (!empty($snapshots)) foreach ($snapshots as $snapshot){
         $exist=false;
         foreach ($snapshot_in_db as $item) {
 			if ($snapshot->{'ID'} == $item['ID']) {
             	$exist=true;
-				$snapshot->date = $item['exp_date'];
+				$snapshot->expdate = $item['exp_date'];
 				$snapshot->owner = $item['username'];
 				$snapshot->provider = $item['provider'];
 				$snapshot->status = $item['status'];
 				$snapshot->vmname = $item['vmname'];
-				$snapshot->dbname = $item['name'];
+				$snapshot->vmid = $item['vmid'];
 				$snapshot->extendlimit=DAYS_USER_CAN_EXTEND_SNAPSHOT;
 				$snapshot_user_list[]=$snapshot;
         	}
     	}
         if ($panel == "admin" and !$exist) 
 		{
-			$snapshot_user_list[]=$snapshot;
-			$snapshot->provider = "OpenStack";
+			if (!isset($snapshot->vmid)) $snapshot->vmid=$snapshot->name;
+			$snapshot_user_list[]=$snapshot;		
 		}
     }
 	echo json_encode($snapshot_user_list);
 }
 
+function set_value_in_whole_array ($where,$what,$with)
+{
+	array_walk($where,
+				function (&$v, $k, $w) {   
+					$what=$w[0];
+        				$v->$what = $w[1];
+        		}, array($what,$with)
+			);
+	return $where;
+}
+
 function get_vms($panel,$provider=null) {
-	$query_vms = "SELECT `vms`.`title`,`vms`.`id` as id,INET_NTOA(`IP`) as IP,`username`,`exp_date`,`vms`.`user_id`,`email`,`vms_statuses`.`title` as vmstatus,`providers`.`title` as provider FROM `vms`,`users`,`vms_statuses`,`providers` WHERE `vms`.`user_id`=`users`.`user_id` and `vms`.`status`=`vms_statuses`.`id` AND `providers`.`id`=`vms`.`provider` AND `vms`.`cleared`=0";
-	$query_tasks = "SELECT `tasks`.`title`,`tasks`.`id` as id,`username`,`exp_date`,`tasks`.`user_id`,`email`,`vms_statuses`.`title` as vmstatus,`providers`.`title` as provider FROM `tasks`,`users`,`vms_statuses`,`providers` WHERE `tasks`.`user_id`=`users`.`user_id` AND `providers`.`id`=`tasks`.`provider` and `tasks`.`status`=`vms_statuses`.`id`";
+	$statuses=[];
+	$statuses_in_db=server_db("SELECT * FROM `vms_statuses`");
+	while ($row=mysqli_fetch_assoc($statuses_in_db))
+	{
+		$statuses += [$row['title'] => $row['display_title']];
+	}
+	$query_vms = "SELECT `vms`.`title`,`vms`.`id` as id,INET_NTOA(`IP`) as IP,`username`,`exp_date`,`vms`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `vms`,`users`,`vms_statuses`,`providers` WHERE `vms`.`user_id`=`users`.`user_id` and `vms`.`status`=`vms_statuses`.`id` AND `providers`.`id`=`vms`.`provider` AND `vms`.`cleared`=0";
+	$query_tasks = "SELECT `tasks`.`title`,`tasks`.`id` as id,`username`,`exp_date`,`tasks`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `tasks`,`users`,`vms_statuses`,`providers` WHERE `tasks`.`user_id`=`users`.`user_id` AND `providers`.`id`=`tasks`.`provider` and `tasks`.`status`=`vms_statuses`.`id` and cleared=0";
 	if (!empty($provider))
 	{
 		$query_vms.=" AND `vms`.`provider`=(SELECT `Id` from `providers` where LOWER(`title`) like LOWER('".$provider."'))";
@@ -92,9 +135,20 @@ function get_vms($panel,$provider=null) {
 	//echo $query_vms;
     switch ($provider)
 	{
-		case "openstack": $vms=json_decode(shell_exec($GLOBALS['openstack_cli']." server list -f json")); break;
-		case "vsphere": $vms=json_decode(shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'")); break;
-		default: $openstack_vms=json_decode(shell_exec($GLOBALS['openstack_cli']." server list -f json")); $vsphere_vms=json_decode(shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'")); $vms = (object) array_merge((array) $openstack_vms, (array) $vsphere_vms); break;
+		case "openstack": 
+			$vms=json_decode(shell_exec($GLOBALS['openstack_cli']." server list -f json")); 
+			if ($vms) $vms=set_value_in_whole_array ($vms,"provider","OpenStack");
+			break;
+		case "vsphere": 
+			$vms=json_decode(shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'"));
+			if ($vms) $vms=set_value_in_whole_array ($vms,"provider","vSphere");
+			break;
+		default: 
+			$openstack_vms=json_decode(shell_exec($GLOBALS['openstack_cli']." server list -f json")); 
+			if ($openstack_vms) $openstack_vms=set_value_in_whole_array ($openstack_vms,"provider","OpenStack");
+			$vsphere_vms=json_decode(shell_exec($GLOBALS['vsphere_cli']."listvms.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'"));
+			if ($vsphere_vms) $vsphere_vms=set_value_in_whole_array ($vsphere_vms,"provider","vSphere");
+			$vms = (object) array_merge((array) $openstack_vms, (array) $vsphere_vms); break;
 	}
 	
 	$vm_in_db=server_db($query_vms);	
@@ -115,18 +169,25 @@ function get_vms($panel,$provider=null) {
         $exist=false;
         foreach ($vm_in_db as $item) {
 			if ($vm->{'ID'} == $item['id']) {
-				$ips=explode("=",$vm->{'Networks'})[1];
-				$query_db="UPDATE `vms` set `ip`=INET_ATON('".explode(", ",$ips)[count(explode(", ",$ips))-1]."')";
-				server_db($query_db);
+				if ($vm->{'Networks'})
+				{
+					$query_db="UPDATE `vms` set `ip`='".$vm->{'Networks'}."' where `id`='".$vm->{'ID'}."'";
+					server_db($query_db);
+				}
             	$exist=true;
 				$vm->date = $item['exp_date'];
 				$vm->owner = $item['username'];
 				$vm->provider = $item['provider'];
+				$vm->Status=$statuses[$vm->Status];
 				$vm->extendlimit=DAYS_USER_CAN_EXTEND_VM;
 				$vm_user_list[]=$vm;
         	}
     	}
-        if ($panel == "admin" and !$exist) $vm_user_list[]=$vm;
+        if ($panel == "admin" and !$exist) 
+		{
+			$vm->Status=$statuses[$vm->Status];
+			$vm_user_list[]=$vm;
+		}
     }
 	echo json_encode($vm_user_list);
 }
@@ -186,10 +247,8 @@ function remove_key_from_openstack($id,$title){
 }
 
 function create_vsphere_vm ($image_id,$name,$owner,$owner_id){
-    $cli=$GLOBALS['vsphere_cli']."createvm.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --resourcepool '".VMW_RESOURCE_POOL."' --vmtemplate ".$image_id." --vmname '".$name."' --user '".$owner."' --user_id '".$owner_id."' --folder '".VMW_VM_FOLDER."' --datastore '".VMW_DATASTORE."' --action createvm";
+    $cli=$GLOBALS['vsphere_cli']."createvm.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --resourcepool '".VMW_RESOURCE_POOL."' --vmtemplate ".$image_id." --vmname '".$name."_".$owner."' --user '".$owner."' --user_id '".$owner_id."' --folder '".VMW_VM_FOLDER."' --datastore '".VMW_DATASTORE."' --action createvm";
     $task=shell_exec($cli);
-	echo $cli;
-	echo $task;
     return $task;
 }
 
@@ -220,4 +279,19 @@ function server_db($query) {
     $conn->close();
     return $result;
 
+}
+
+function restore_vm($backupid,$provider)
+{
+	$vmid=mysqli_fetch_assoc(server_db("SELECT `vm_id` from `snapshots` where `snapshot_id`='$backupid'"));
+	switch ($provider)
+	{
+		case "openstack":
+			$cli=$GLOBALS['openstack_cli']." server rebuild --image '$backupid' '$vmid' -f json 2>&1";
+			break;
+		case "vsphere":
+			$cli=$GLOBALS['vsphere_cli']." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmname '".$vmid."' --folder '".VMW_VM_FOLDER."' --operation goto --snapshotname ".$backupid;
+			break;
+	}
+	return shell_exec($cli);	
 }

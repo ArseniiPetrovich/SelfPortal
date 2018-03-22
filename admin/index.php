@@ -491,11 +491,8 @@ else switch ($_GET['dashboard']){
                                     </li>
 									<li class=\"\"><a href=\"#departments\" data-toggle=\"tab\" aria-expanded=\"false\">Departments</a>
                                     </li>
-									<li class=\"\"><a href=\"#rights\" data-toggle=\"tab\" aria-expanded=\"false\">Rights</a>
-                                    </li>
 									<li class=\"\"><a href=\"#ad_groups\" data-toggle=\"tab\" aria-expanded=\"false\">AD Groups</a>
-                                    </li>";
-		
+                                    </li>";		
                                 echo "</ul>
 
                                 <!-- Tab panes -->
@@ -513,7 +510,7 @@ else switch ($_GET['dashboard']){
                                         echo "<script> js_panel_generate(\"vms\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"admin_snapshots_div\" panel=\"admin\">";
-                                        echo "<script> js_panel_generate(\"snapshots\"); </script>";
+                                        echo "<script> js_panel_generate(\"adminsnapshots\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"departments\">";
                                         echo "<script> js_panel_generate(\"departments\"); </script>";
@@ -523,9 +520,6 @@ else switch ($_GET['dashboard']){
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"internal_users\">";
                                         echo "<script> js_panel_generate(\"internal_users\"); </script>";
-                                        echo "</div>
-									<div class=\"tab-pane fade\" id=\"rights\">";
-                                        echo "<script> js_panel_generate(\"rights\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"ad_groups\">";
                                         echo "<script> js_panel_generate(\"ad_groups\"); </script>";

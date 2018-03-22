@@ -1,6 +1,5 @@
 <?php
 require $_SERVER['DOCUMENT_ROOT'].'/config/config.php';
-check_ldap_user("petrovich","arsenii.petrovich@altoros.com","empty","siiiiiiid");
 function check_ldap_user($username,$email,$department,$sid){
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE);
 	// Check connection

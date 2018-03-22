@@ -91,7 +91,6 @@ sub deploy_template() {
         if (Opts::get_option('folder')) {
                   my $folder_name = Opts::get_option('folder');
                   $folder = Vim::find_entity_view( view_type => 'Folder', filter => { 'name' => $folder_name } );
-				  $folder=$folder->CreateFolder("[Altoros] /123");
         } else {
                   $folder = $vm_view->parent;
         }

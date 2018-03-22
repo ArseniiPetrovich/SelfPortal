@@ -106,6 +106,10 @@ sub get_vm_info {
    );
    my $vm_view = shift @$vm_views;
    if ($vm_view) {
+   		my $networks=$vm_view->guest->net;
+		my $addresses;
+   		foreach my $network (@{$networks}) { $addresses .= $network->ipAddress->[0]."; ";  }	
+   		#print Dumper($vm_view->guest);
 		my %vm = (
 				'ID' => $vm_view->summary->config->uuid,
 				'name' => $vm_view->name,
@@ -113,7 +117,7 @@ sub get_vm_info {
 				'ram' => $vm_view->summary->config->memorySizeMB,
 				'disk' => ($vm_view->summary->storage->unshared+$vm_view->summary->storage->uncommitted)/1073741824,
 				'image' => $vm_view->summary->config->guestFullName,
-				'addresses' => $vm_view->guest->ipAddress,
+				'addresses' => $addresses,
 				'status' => $vm_view->summary->runtime->powerState->val,
 		);
 		print encode_json \%vm;

@@ -1,7 +1,7 @@
 <?php
 #Check right
-function access_level($resourse,$action,$resource_id) {
-    if (access_level_internal($resourse,$action,$resource_id))
+function access_level($resourse,$action,$provider=null,$resource_id=null) {
+    if (access_level_internal($resourse,$action,$provider,$resource_id))
     {
         $log=date('Y-m-d H:i:s')." [ACCESS][INFO] User ".$_SESSION['user']." (id ".$_SESSION['user_id'].") with access level ".$_SESSION['access']." tried to ".$action." ".$resourse;
         if (isset($resource_id)) $log.=" (id ".$resource_id.")";
