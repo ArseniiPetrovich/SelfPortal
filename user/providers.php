@@ -77,12 +77,26 @@ function get_snapshots($panel,$provider)
 	}
 	
 	$snapshot_in_db=server_db($query);	
+	foreach ($snapshot_in_db as $item) {
+		if (strpos($item['status'], 'TERMINATED') !== false) {
+			$snapshot=new stdClass();
+			$snapshot->id = $item['ID'];
+			$snapshot->exp_date = $item['exp_date'];
+			$snapshot->owner = $item['username'];
+			$snapshot->provider = $item['provider'];
+			$snapshot->status = $item['status'];
+			$snapshot->vmname = $item['vmname'];
+			$snapshot->vmid = $item['vmid'];
+			$snapshot_user_list[]=$snapshot;
+        }
+    }
+	
     if (!empty($snapshots)) foreach ($snapshots as $snapshot){
         $exist=false;
         foreach ($snapshot_in_db as $item) {
-			if ($snapshot->{'ID'} == $item['ID']) {
+			if ($snapshot->{'id'} == $item['ID']) {
             	$exist=true;
-				$snapshot->expdate = $item['exp_date'];
+				$snapshot->exp_date = $item['exp_date'];
 				$snapshot->owner = $item['username'];
 				$snapshot->provider = $item['provider'];
 				$snapshot->status = $item['status'];
@@ -154,7 +168,7 @@ function get_vms($panel,$provider=null) {
 	$vm_in_db=server_db($query_vms);	
 	$task_in_db=server_db($query_tasks);
 	
-	foreach ($task_in_db as $task) {		
+	foreach ($task_in_db as $task) {	
         $taskarray=new stdClass();
         $taskarray->ID = -1;
         $taskarray->date = $task['exp_date'];
@@ -165,6 +179,21 @@ function get_vms($panel,$provider=null) {
         $taskarray->Name=$task['title'];
         $vm_user_list[]=$taskarray;
     }
+	
+	foreach ($vm_in_db as $vm) {
+		if (strpos($vm['vmstatus'], 'TERMINATED') !== false)
+		{
+			$vmarray=new stdClass();
+			$vmarray->ID = -1;
+			$vmarray->date = $vm['exp_date'];
+			$vmarray->owner = $vm['username'];
+			$vmarray->Status=$vm['vmstatus'];
+			$vmarray->Name=$vm['title'];
+			$vmarray->provider = $vm['provider'];
+			$vm_user_list[]=$vmarray;
+		}
+    }
+	
     if (!empty($vms)) foreach ($vms as $vm){
         $exist=false;
         foreach ($vm_in_db as $item) {
@@ -281,16 +310,15 @@ function server_db($query) {
 
 }
 
-function restore_vm($backupid,$provider)
+function restore_vm($backupid,$vmid,$provider)
 {
-	$vmid=mysqli_fetch_assoc(server_db("SELECT `vm_id` from `snapshots` where `snapshot_id`='$backupid'"));
 	switch ($provider)
 	{
 		case "openstack":
 			$cli=$GLOBALS['openstack_cli']." server rebuild --image '$backupid' '$vmid' -f json 2>&1";
 			break;
 		case "vsphere":
-			$cli=$GLOBALS['vsphere_cli']." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmname '".$vmid."' --folder '".VMW_VM_FOLDER."' --operation goto --snapshotname ".$backupid;
+			$cli=$GLOBALS['vsphere_cli']."snapshotmanager.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmname '".$vmid."' --folder '".VMW_VM_FOLDER."' --operation goto --snapshotname ".$backupid;
 			break;
 	}
 	return shell_exec($cli);	

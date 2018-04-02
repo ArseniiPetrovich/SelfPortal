@@ -19,16 +19,14 @@ function access_level($resourse,$action,$provider=null,$resource_id=null) {
 
 function access_level_internal($resource,$action,$provider,$resource_id) {
     $access=false;
-    if (sql_query("SELECT count(*) FROM `permissions` where `actions`=(SELECT `id` from `actions` where `resource`='all' AND `action`='all') and `rights`=".$_SESSION['access']))  return $access=true;
-    $rights=sql_query("SELECT MIN(`bypass_resource_check`) FROM `permissions` where `actions`=(SELECT `id` FROM `actions` where (`resource`='$resource' or `resource`='all')  AND (`action`='$action' OR `action`='all'))  AND (`providers`='$provider' OR `providers`='NULL') AND `rights`=".$_SESSION['access']);
-	if ($provider) $provider_sql=" AND `provider`='$provider'";
-	if ($rights===0) { 
-		if (sql_num_rows(sql_query("SELECT * from `$resource` WHERE `user_id`='$_SESSION[user_id]' and `id`='$resource_id'".$provider_sql))>0) 
-			return true;
-		else
-			return false;
+    if (mysqli_num_rows(sql_query("SELECT * FROM `permissions` where `actions`=(SELECT `id` from `actions` where `resource`='all' AND `action`='all') and `rights`=".$_SESSION['access']))) { return $access=true;}
+    $rights=mysqli_fetch_array(sql_query("SELECT MAX(`bypass_resource_check`) FROM `permissions` where `actions` IN (SELECT `id` FROM `actions` where (`resource`='$resource' or `resource`='all')  AND (`action`='$action' OR `action`='all'))  AND (`provider`='$provider' OR `provider` IS NULL) AND `rights`=".$_SESSION['access']));
+	if ($rights[0]==0 && !is_null($rights[0])) { 
+		return sql_num_rows(sql_query("SELECT * from `$resource` WHERE `user_id`='$_SESSION[user_id]' and `id`='$resource_id'")) > 0
+			? true
+			: false ;
 	}
-	else if ($rights===1) return true;
+	else if ($rights[0]==1) return true;
 	else return false;
 }
 

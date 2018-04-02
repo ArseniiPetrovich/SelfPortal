@@ -485,13 +485,13 @@ else switch ($_GET['dashboard']){
                                     </li>";
                                     if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#admin_snapshots_div\" data-toggle=\"tab\" aria-expanded=\"false\">Snapshots</a>
                                     </li>
+									<li class=\"\"><a href=\"#departments\" data-toggle=\"tab\" aria-expanded=\"false\">Departments</a>
+                                    </li>
 									<li class=\"\"><a href=\"#ldap_users\" data-toggle=\"tab\" aria-expanded=\"false\">LDAP Users</a>
                                     </li>
 									<li class=\"\"><a href=\"#internal_users\" data-toggle=\"tab\" aria-expanded=\"false\">Internal Users</a>
                                     </li>
-									<li class=\"\"><a href=\"#departments\" data-toggle=\"tab\" aria-expanded=\"false\">Departments</a>
-                                    </li>
-									<li class=\"\"><a href=\"#ad_groups\" data-toggle=\"tab\" aria-expanded=\"false\">AD Groups</a>
+									<li class=\"\"><a href=\"#adgroups\" data-toggle=\"tab\" aria-expanded=\"false\">AD Groups</a>
                                     </li>";		
                                 echo "</ul>
 
@@ -521,8 +521,8 @@ else switch ($_GET['dashboard']){
 									<div class=\"tab-pane fade\" id=\"internal_users\">";
                                         echo "<script> js_panel_generate(\"internal_users\"); </script>";
                                         echo "</div>
-									<div class=\"tab-pane fade\" id=\"ad_groups\">";
-                                        echo "<script> js_panel_generate(\"ad_groups\"); </script>";
+									<div class=\"tab-pane fade\" id=\"adgroups\">";
+                                        echo "<script> js_panel_generate(\"adgroups\"); </script>";
                                         echo "</div>
                                 </div>
                             </div>";

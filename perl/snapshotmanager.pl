@@ -211,8 +211,12 @@ sub list_snapshot {
 # Create: Creates a snapshot for one or more VMs.
 #===========================================================
 sub create_snapshot {
-   my $vm_views = VMUtils::get_vms ('VirtualMachine', $vm_name, $datacenter, $folder,
-                            $pool, $host, %filter_hash);
+   my $vm_views = Vim::find_entity_views(
+   		view_type => 'VirtualMachine',
+		filter => {
+			'config.uuid' => $vm_name
+		}
+   );
    my $snapshot_name = Opts::get_option('snapshotname');
    foreach (@$vm_views) {
    
@@ -267,8 +271,12 @@ sub create_snapshot {
 #====================================================
 sub revert_snapshot {
    my $vmname = Opts::get_option('vmname');
-   my $vm_views = VMUtils::get_vms ('VirtualMachine', $vm_name, $datacenter, $folder,
-                                       $pool, $host, %filter_hash);
+   my $vm_views = Vim::find_entity_views(
+   		view_type => 'VirtualMachine',
+		filter => {
+			'config.uuid' => $vm_name
+		}
+   );
                                        
    if ($#{$vm_views} != 0) {
       Util::trace(0, "Virtual machine <$vm_name> not unique.\n");
@@ -326,8 +334,12 @@ sub goto_snapshot {
    my $vmname = Opts::get_option('vmname');
    my $revert_snapshot = Opts::get_option('snapshotname');
     
-   my $vm_views = VMUtils::get_vms ('VirtualMachine', $vm_name, $datacenter, $folder,
-                                       $pool, $host, %filter_hash);
+   my $vm_views = Vim::find_entity_views(
+   		view_type => 'VirtualMachine',
+		filter => {
+			'config.uuid' => $vm_name
+		}
+   );
    if ($#{$vm_views} != 0) {
       Util::trace(0, "Virtual machine <$vm_name> not unique.\n");
       return;

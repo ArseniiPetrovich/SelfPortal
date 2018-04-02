@@ -297,7 +297,7 @@ $(document).on("click", "[data-action-snapshots]", function (event) {
 		.done(function (data, status) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
-				js_panel_generate($('[id*="_snapshots_div"]').attr('panel')+'snapshots');
+				js_panel_generate($(event.target).closest('ul').attr('data-provider-snapshots')+'snapshots');
 				if (data) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
@@ -672,8 +672,8 @@ function js_panel_generate(tumbler, returndata = null) {
 		case "rights":
 			js_panel_generate_rights(returndata);
 			break;
-		case "ad_groups":
-			js_panel_generate_ad_groups(returndata);
+		case "adgroups":
+			js_panel_generate_adgroups(returndata);
 			break;
 	}
 }
@@ -702,6 +702,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 				'<p><table id="snapshots_list_'+provider+'" class="display" cellspacing="0" width="100%">' +
 				'<thead><tr>' +
 				'<th>VM Name</th>' +
+				'<th>Status</th>' +
 				'<th>Creation date</th>' +
 				'<th>Expiration Date</th>' +
 				'<th>Actions</th>';
@@ -713,6 +714,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 			body += '</tr></thead>' +
 				'<tfoot><tr>' +
 				'<th>VM Name</th>' +
+				'<th>Status</th>' +
 				'<th>Creation date</th>' +
 				'<th>Expiration Date</th>' +
 				'<th>Actions</th>';
@@ -731,10 +733,10 @@ function js_panel_generate_snapshots(returndata, provider) {
 						'<tr><td>' +
 						$(this)[0]["name"] +
 						'</td><td>' +
-						Date($(this)[0]["createddate"]).toString() +
+						$(this)[0]["status"] +
 						'</td><td>' +
-						$(this)[0]["exp_date"] +
-					'<div class="dropdown">';
+						Date($(this)[0]["createddate"]).toString() +
+						'</td><td><div class="dropdown">'+$(this)[0]["exp_date"];
 					var extendlimit = new Date();
 					var dateVM = new Date($(this)[0]["createddate"]);
 					extendlimit.setDate(extendlimit.getDate() + parseInt($(this)[0]['extendlimit']));
@@ -753,10 +755,10 @@ function js_panel_generate_snapshots(returndata, provider) {
 						'<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">Actions' +
 						'<span class="caret"></span></button>' +
 						'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["id"] + '" vmid="' + $(this)[0]["vmid"] + '">';
-					if (!$(this)[0]["Status"] || !$(this)[0]["Status"].includes("terminated"))	body +=
+					if (!$(this)[0]["status"] || !$(this)[0]["status"].includes("TERMINATED"))	body +=
 						'<li><a href="#" data-action-snapshots="restore">Restore</a></li>' +
 						'<li><a href="#" data-action-snapshots="terminate">Terminate</a></li>';
-					else body +='<li><a href="#" data-action-snapshots-clear="clear">Clear</a></li>';
+					else body +='<li><a href="#" data-action-snapshots="clear">Clear</a></li>';
 					body +=
 						'</ul> </div>' +
 						'</td>';	
@@ -779,10 +781,10 @@ function js_panel_generate_snapshots(returndata, provider) {
 		});
 }
 
-function js_panel_generate_ad_groups(returndata) {
+function js_panel_generate_adgroups(returndata) {
 	var retbody = $.post('check.php', {
 			action: "list",
-			type: "ad_groups",
+			type: "adgroups",
 		})
 		.done(function (data, status) {
 			var arr = JSON.parse(data);
@@ -790,15 +792,15 @@ function js_panel_generate_ad_groups(returndata) {
 				'<p><div class="hide alert alert-danger" id="blacklist_mod_form_return">' +
 				'<strong>Alert!</strong> AD group were not added. This name already exists in the list.' +
 				'</div></p>' +
-				'<form class="form-inline form_mod" data-type="add" id="ad_groups_add" style="padding:10px 0px 10px">' +
+				'<form class="form-inline form_mod" data-type="add" id="adgroups_add" style="padding:10px 0px 10px">' +
 				'<div class="form-group">' +
-				'<input type="text" class="form-control" id="ad_groups_add_ldap_dn" name="ldap_dn" placeholder="OU DN (like OU=Users,DC=example,DC=com) (required)" required">' +
-				'<input type="text" class="form-control" id="ad_groups_add_title" name="title" placeholder="Group (required)" required">' +
-				'<select class="form-control" required name="rights" id="ad_groups_add_rights_list"></select>' +
+				'<input type="text" class="form-control" id="adgroups_add_ldap_dn" name="ldap_dn" placeholder="OU DN (like OU=Users,DC=example,DC=com) (required)" required">' +
+				'<input type="text" class="form-control" id="adgroups_add_title" name="title" placeholder="Group (required)" required">' +
+				'<select class="form-control" required name="rights" id="adgroups_add_rights_list"></select>' +
 				'</div>' +
 				'<button type="submit" class="btn btn-primary">Add</button>' +
 				'</form>' +
-				'<p><table id="ad_groups_list" class="display" cellspacing="0" width="100%">' +
+				'<p><table id="adgroups_list" class="display" cellspacing="0" width="100%">' +
 				'<thead><tr>' +
 				'<th>ID</th>' +
 				'<th>OU DN</th>' +
@@ -817,12 +819,12 @@ function js_panel_generate_ad_groups(returndata) {
 					'</td><td>' +
 					$(this)[0].rights +				
 					'</td>' +
-					'<td>'+/*'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" id="ad_groups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*'<button type="button" id="adgroups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" id="adgroups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>'
-			$('#ad_groups').html(body);
-			$('#ad_groups_list').DataTable();
+			$('#adgroups').html(body);
+			$('#adgroups_list').DataTable();
 			
 			var retbody = $.post('check.php', {
 				action: "list",
@@ -830,7 +832,7 @@ function js_panel_generate_ad_groups(returndata) {
 			})
 			.done(function (data, status) {
 				var arr = JSON.parse(data);
-				select = document.getElementById('ad_groups_add_rights_list');
+				select = document.getElementById('adgroups_add_rights_list');
 				jQuery.each(arr, function () {
 					option = document.createElement( 'option' );
     				option.value = this.id;
@@ -1073,20 +1075,22 @@ function js_panel_generate_users(returndata,provider) {
 			var body='';
 			if (provider.toUpperCase()==="INTERNAL")
 			{
+				
 				body+=
 				'<p><div class="hide alert alert-danger" id="users_add_form_return">' +
 				'<strong>Alert!</strong> User were not added. This name already exists in the list.' +
 				'</div></p>' +
-				'<form class="form-inline form_mod" data-type="add" id="users_internal_add" style="padding:10px 0px 10px">' +
+				'<form class="form-inline form_mod" data-type="add" id="users_internal_add" provider="internal" style="padding:10px 0px 10px">' +
 				'<div class="form-group">' +
 				'<input type="text" class="form-control" id="users_internal_add_username" name="username" placeholder="Username (required)" required">' +
 				'<input type="password" class="form-control" id="users_internal_add_password" name="password" placeholder="Password (required)" required">'+
 				'<input type="email" class="form-control" id="users_internal_add_email" name="email" placeholder="Email" required">' +
-				'<select class="form-control" required name="department" id="users_internal_add_departments_list">'+departmentlist+'</select>' +
+				'<select class="form-control" required name="department" id="users_internal_add_departments_list"></select>' +
 				'<input class="form-check-input inherit_checkbox" type="checkbox" id="users_internal_add_checkbox"> Inherit department quotas' +
 				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_proc_quota" name="proc_quota" placeholder="CPU Quota, Cores">' +
 				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_ram_quota" name="ram_quota" placeholder="RAM Quota, MB">' +
 				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_disk_quota" name="disk_quota" placeholder="Disk Quota, GB">' +
+				'<select class="form-control" required name="rights" id="users_internal_add_rights_list"></select>' +
 				'</div>' +
 				'<button type="submit" class="btn btn-primary">Add</button>' +
 				'</form>';
@@ -1118,6 +1122,45 @@ function js_panel_generate_users(returndata,provider) {
 			body += '</tbody></table></p>';
 			$('#'+provider+'_users').html(body);
 			$('#users_list_'+provider).DataTable();
+			
+			var retbody = $.post('check.php', {
+				action: "list",
+				type: "rights",
+			})
+			.done(function (data, status) {
+				var arr = JSON.parse(data);
+				select = document.getElementById('users_internal_add_rights_list');
+				$("#users_internal_add_rights_list").html("");
+				jQuery.each(arr, function () {
+					option = document.createElement( 'option' );
+    				option.value = this.id;
+					option.text = this.title;
+    				select.add( option );
+				});
+			})
+			.fail(function () {
+				window.location.replace("/index.php?out=logout");
+			});	
+			
+			var retbody = $.post('check.php', {
+				action: "list",
+				type: "departments",
+			})
+			.done(function (data, status) {
+				var arr = JSON.parse(data);
+				select = document.getElementById('users_internal_add_departments_list');
+				$("#users_internal_add_departments_list").html("");
+				jQuery.each(arr, function () {
+					option = document.createElement( 'option' );
+    				option.value = this.id;
+					option.text = this.title;
+    				select.add( option );
+				});
+			})
+			.fail(function () {
+				window.location.replace("/index.php?out=logout");
+			});	
+			
 		})
 		.fail(function () {
 			window.location.replace("/index.php?out=logout");

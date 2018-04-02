@@ -172,9 +172,9 @@ include_once ("access.php");
 							echo "Snapshot for this VM already exists! Delete it first.";
 							return;
 						} 
-						$backup_string=$vsphere_cli. "snapshotmanager.pl --operation create --vmname '".$_POST['id']."' --snapshotname '".$_POST['id']."'";
+						$backup_string=$vsphere_cli. "snapshotmanager.pl --operation create --vmname '".$_POST['id']."' --snapshotname '".$_POST['id']."'  --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
 						$cli_result=shell_exec($backup_string);
-						if (strpos($cli_result,"backup-")!==false)
+						if (strpos($cli_result,"snapshot-")!==false)
 						{
 							$query="INSERT INTO `snapshots` VALUES ('".$cli_result."','".$_POST['id']."','".date("Y-m-d H:i:s")."','".date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','ENABLED',0)";
 						}
@@ -225,7 +225,7 @@ include_once ("access.php");
 							$cli_flag=true;
 							break;
 						case "clear": 
-							$query="UPDATE `snapshots` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'"; break;
+							$query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
 						case "extend":
                 			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
                     		break;
@@ -252,16 +252,16 @@ include_once ("access.php");
 							$vsphere_cli .= "snapshotmanager.pl --vmname '".$_POST['vmid']."' --snapshotname '".$_POST['id']."' --children 0 --folder '".VMW_VM_FOLDER."' --operation remove";
 							$cli_flag=true;
 							break;
-						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'"; break;
+						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
 						case "extend":
                 			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
                     		break;
                 		case "count":
-                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE vm_id in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
+                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE `vm_id` in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
                     		break;
 						case "info": break;
 						case "restore":
-							restore_vm($_POST['id'],$_POST['provider']);
+							restore_vm($_POST['id'],$_POST['vmid'],$_POST['provider']);
 							break;
 					}
 					$cli=$vsphere_cli." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
@@ -362,7 +362,8 @@ include_once ("access.php");
 						$query="SET @A=(SELECT id from `user_types` where LOWER(`title`) like LOWER('internal'));
 						INSERT INTO `users` VALUES(NULL,'".$_POST['name']['username']."','".$_POST['name']['email']."','".$_POST['name']['department']."',@A,0,NULL,NULL,NULL);
 						SET @B=(SELECT id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
-						INSERT INTO `".$users_table."` VALUES (NULL,@B,'".password_hash($_POST['name']['password'])."','".$_POST['name']['rights']."');";
+						INSERT INTO `".$users_table."` VALUES (NULL,@B,'".password_hash($_POST['name']['password'],PASSWORD_DEFAULT)."','".$_POST['name']['rights']."');";
+						echo $query;
 						break;
 					case "delete":
 						$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
@@ -387,7 +388,7 @@ include_once ("access.php");
            		break;
 		}
 	  break;
-	  case "ad_groups":
+	  case "adgroups":
 	  	switch ($_POST['action']){
         	case "list":
            		$query = "SELECT `ad_groups`.`id` as id, `ad_groups`.`ldap_dn` as ldap_dn,`ad_groups`.`title` as title,`rights`.`title` as rights FROM `ad_groups`,`rights` where `ad_groups`.`rights`=`rights`.`id`";
@@ -395,11 +396,11 @@ include_once ("access.php");
 			case "add":
            		$query = "INSERT INTO `ad_groups` VALUES (NULL,'".$_POST['name']['ldap_dn']."','".$_POST['name']['title']."','".$_POST['name']['rights']."')";
            		break;
-			case "update":
-           		$query = "UPDATE `departments` SET `ldap_dn`='".$_POST['name']['ldap_dn']."', `title`='".$_POST['name']['title']."', `rights`='".$_POST['name']['rights']."' WHERE `Id`='".$_POST['id']."'";
-           		break;
+			#case "update":
+           	#	$query = "UPDATE `departments` SET `ldap_dn`='".$_POST['name']['ldap_dn']."', `title`='".$_POST['name']['title']."', `rights`='".$_POST['name']['rights']."' WHERE `Id`='".$_POST['id']."'";
+           #		break;
 			case "delete":
-           		$query = "DELETE FROM `departments` WHERE Id='".$_POST['id']."'";
+           		$query = "DELETE FROM `ad_groups` WHERE `Id`='".$_POST['id']."'";
            		break;
 		}
 	  break;
