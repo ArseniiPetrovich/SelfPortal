@@ -293,7 +293,7 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 								<ul class="nav nav-second-level">
 									<li>
 										<?php
-                                    echo "<a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Sites\">Sites</a>";
+                                    echo "<a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Sites\">Sites <span id=\"site_online_side\"></span></a>";
                                         ?>
 									</li>
 									<li class="hide">
@@ -305,13 +305,13 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 										if (defined('VMW_SERVER') || defined('OS_AUTH_URL'))
 										{
 											echo '<li>
-												<a href="#">Virtual machines <span class="fa arrow"></span></a>
+												<a href="#">Virtual machines <span class="fa arrow"></span><span id="vm_online_side"></span></a>
 												<ul class="nav nav-third-level">';		
 											if (defined('OS_AUTH_URL')) echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Openstack VMs\">Openstack VMs</a></li>";
 											if (defined('VMW_SERVER'))  echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=vSphere VMs\">vSphere VMs</a></li>";
 											echo '</ul></li>';
 											echo '<li>
-												<a href="#">Snapshots <span class="fa arrow"></span></a>
+												<a href="#">Snapshots <span class="fa arrow"></span><span id="snapshots_online_side"></span></a>
 												<ul class="nav nav-third-level">';		
 											if (defined('OS_AUTH_URL')) echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=Openstack Snapshots\">Openstack Snapshots</a></li>";
 											if (defined('VMW_SERVER'))  echo "<li><a href=\"$_SERVER[SCRIPT_NAME]?dashboard=vSphere Snapshots\">vSphere Snapshots</a></li>";
@@ -357,7 +357,7 @@ if (empty($_GET['dashboard'])) echo "
                             <div class=\"panel-heading\">
                                 <div class=\"row\">
                                     <div class=\"col-xs-3\">
-                                        <i class=\"fa fa-sitemap fa-5x\"></i>
+                                        <i class=\"fa fa-globe fa-5x\"></i>
                                     </div>
                                     <div class=\"col-xs-9 text-right\">
                                         <div class=\"huge\" id=\"site_online\"></div>
@@ -389,6 +389,29 @@ if (empty($_GET['dashboard'])) echo "
                                 <div class=\"row\"><div class=\"col-xs-12 text-left dashboard_label\">VMs</div></div>
                             </div>
                             <a href=\"/user/index.php?dashboard=Openstack%20VMs\">
+                                <div class=\"panel-footer\">
+                                    <span class=\"pull-left\">View Details</span>
+                                    <span class=\"pull-right\"><i class=\"fa fa-arrow-circle-right\"></i></span>
+
+                                    <div class=\"clearfix\"></div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+					<div class=\"col-lg-4 col-md-6\">
+                        <div class=\"panel panel-red\">
+                            <div class=\"panel-heading\">
+                                <div class=\"row\">
+                                    <div class=\"col-xs-3\">
+                                        <i class=\"fa fa-save fa-5x\"></i>
+                                    </div>
+                                    <div class=\"col-xs-9 text-right\">
+                                        <div class=\"huge\" id=\"snapshots_online\"></div>
+                                    </div>
+                                </div>
+                                <div class=\"row\"><div class=\"col-xs-12 text-left dashboard_label\">Snapshots</div></div>
+                            </div>
+                            <a href=\"/user/index.php?dashboard=Openstack%20Snapshots\">
                                 <div class=\"panel-footer\">
                                     <span class=\"pull-left\">View Details</span>
                                     <span class=\"pull-right\"><i class=\"fa fa-arrow-circle-right\"></i></span>
@@ -481,9 +504,9 @@ else switch ($_GET['dashboard']){
                                     </li>
                                     <li class=\"\"><a href=\"#sites_table_div\" data-toggle=\"tab\" aria-expanded=\"false\">Sites</a>
                                     </li>";
-                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#admin_vm_div\" data-toggle=\"tab\" aria-expanded=\"false\">VMs</a>
+                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#vm_div\" data-toggle=\"tab\" aria-expanded=\"false\">VMs</a>
                                     </li>";
-                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#admin_snapshots_div\" data-toggle=\"tab\" aria-expanded=\"false\">Snapshots</a>
+                                    if (defined('OS_AUTH_URL') || defined('VMW_SERVER')) echo "<li class=\"\"><a href=\"#snapshots_div\" data-toggle=\"tab\" aria-expanded=\"false\">Snapshots</a>
                                     </li>
 									<li class=\"\"><a href=\"#departments\" data-toggle=\"tab\" aria-expanded=\"false\">Departments</a>
                                     </li>
@@ -506,20 +529,20 @@ else switch ($_GET['dashboard']){
                                     <div class=\"tab-pane fade\" id=\"sites_table_div\">";
                                         echo "<script> js_panel_generate(\"site\"); </script>";
                                         echo "</div>
-                                    <div class=\"tab-pane fade\" id=\"admin_vm_div\" panel=\"admin\">";
+                                    <div class=\"tab-pane fade\" id=\"vm_div\" panel=\"admin\">";
                                         echo "<script> js_panel_generate(\"vms\"); </script>";
                                         echo "</div>
-									<div class=\"tab-pane fade\" id=\"admin_snapshots_div\" panel=\"admin\">";
+									<div class=\"tab-pane fade\" id=\"snapshots_div\" panel=\"admin\">";
                                         echo "<script> js_panel_generate(\"adminsnapshots\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"departments\">";
                                         echo "<script> js_panel_generate(\"departments\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"ldap_users\">";
-                                        echo "<script> js_panel_generate(\"ldap_users\"); </script>";
+                                        echo "<script> js_panel_generate(\"ldapusers\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"internal_users\">";
-                                        echo "<script> js_panel_generate(\"internal_users\"); </script>";
+                                        echo "<script> js_panel_generate(\"internalusers\"); </script>";
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"adgroups\">";
                                         echo "<script> js_panel_generate(\"adgroups\"); </script>";
@@ -574,16 +597,16 @@ else switch ($_GET['dashboard']){
 </div>";
              break;
              case "Openstack VMs":
-                 echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" data-provider=\"openstack\" class=\"btn btn-primary btn-vm-add\">Launch Instance</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('openstackvms')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"openstack_vm_div\" panel=\"user\"><script>js_panel_generate(\"openstackvms\"); </script></div>";
+                 echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" data-provider=\"openstack\" class=\"btn btn-primary btn-vm-add\">Launch Instance</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('openstackvms')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vm_div\" panel=\"openstack\"><script>js_panel_generate(\"openstackvms\"); </script></div>";
 				 break;
 			 case "vSphere VMs":
-		         echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" data-provider=\"vsphere\" class=\"btn btn-primary btn-vm-add\">Launch Instance</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspherevms')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vsphere_vm_div\" panel=\"user\"><script>js_panel_generate(\"vspherevms\"); </script></div>";
+		         echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" data-provider=\"vsphere\" class=\"btn btn-primary btn-vm-add\">Launch Instance</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspherevms')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vm_div\" panel=\"vsphere\"><script>js_panel_generate(\"vspherevms\"); </script></div>";
 				 break;
 			case "Openstack Snapshots":
-		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('openstacksnaphsots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"openstack_snapshots_div\" panel=\"user\"><script>js_panel_generate(\"openstacksnapshots\"); </script></div>";
+		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('openstacksnapshots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"snapshots_div\" panel=\"openstack\"><script>js_panel_generate(\"openstacksnapshots\"); </script></div>";
 				 break;
 			case "vSphere Snapshots":
-		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspheresnapshots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"vsphere_snapshots_div\" panel=\"user\"><script>js_panel_generate(\"vspheresnapshots\"); </script></div>";
+		         echo "<div class=\"row\"><div class=\"col-sm-11\"></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('vspheresnapshots')\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr><div id=\"snapshots_div\" panel=\"vsphere\"><script>js_panel_generate(\"vspheresnapshots\"); </script></div>";
 				 break;
 }
 ?>

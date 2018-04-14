@@ -5,6 +5,15 @@ include ("login.php");
 // Initialize session
 ini_set('session.cookie_httponly', '1');
 session_start();
+
+function write_log($entry){
+    $file = fopen(LOG_FOLDER."/access.log", "a");
+    $entry=preg_replace("/--os-username .* --os-password .* --os-region-name/","--os-username ******** --os-password ******* --os-region-name",$entry);
+	$entry=preg_replace("/--username .* --password .* /","--username ******** --password *******",$entry);
+    fwrite($file,$entry."\n");
+    fclose($file);
+}
+
 function SIDtoString($ADsid)
 {
     $sid = "S-";
@@ -87,13 +96,13 @@ function authenticate($user, $password) {
     } else {
 		$query="SELECT `table_name` from `user_types` where LOWER(`title`) like LOWER('internal')";
         $table_internal=mysqli_fetch_array(mysqli_query($conn,$query)) or die ("Could not get any results from mysql");
-		$query="SELECT * from `".$table_internal['table_name']."`";
+		$query="SELECT * from `".$table_internal['table_name']."` where `rights`>0";
         $int_users=mysqli_query($conn,$query) or die ("Could not get any results from mysql");
 		$_SESSION['access']=0;
 		foreach ($int_users as $int_user)
 		{
-			if ($int_user===$user) 
-				if (password_verify ($password , $int_users['passwd'])) 
+			if ($int_user['username']===$user) 
+				if (password_verify ($password , $int_user['passwd'])) 
 				{
 					if ($int_users['rights']>$_SESSION['access'])
 					{

@@ -38,7 +38,7 @@ switch ($options['action']){
 
 function update_info($task,$user)
 {
-	$cli="/usr/bin/perl ".dirname(__FILE__)."/../perl/createvm.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --resourcepool '".VMW_RESOURCE_POOL."' --vmtemplate none --vmname ".$task." --user ".$user." --user ".$user_id." --folder '".VMW_VM_FOLDER."' --datastore '".VMW_DATASTORE."' --action updateinfo";
+	$cli="/usr/bin/perl ".dirname(__FILE__)."/../perl/createvm.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --resourcepool '".VMW_RESOURCE_POOL."' --vmtemplate none --vmname ".$task." --user ".$user." --folder '".VMW_VM_FOLDER."' --datastore '".VMW_DATASTORE."' --action updateinfo";
 	$result=shell_exec($cli);
 	if (!is_numeric($result))
 	{
@@ -63,7 +63,7 @@ function vmupdate()
 {
 	$conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE);
 	//$query="SELECT `vm_id`,`username`,`exp_date`,`vms`.`user_id`,`email`,`title` FROM `vms`,`users` WHERE `vms`.`user_id`=`users`.`user_id` and `vm_id` like '%task%' and `vm_id` not like '%FAILURE%' and `vm_id` not like '%TERMINATED%'";
-	$query="SELECT * FROM `tasks`,`users` where `tasks`.`user_id`=`users`.`user_id` AND `tasks`.`status`!=(SELECT `id` FROM `vms_statuses` where LOWER(`title`) like LOWER('DISABLED'))";
+	$query="SELECT * FROM `tasks`,`users` where `tasks`.`user_id`=`users`.`user_id` AND `tasks`.`status`=(SELECT `id` FROM `vms_statuses` where LOWER(`title`) LIKE LOWER('BUILDING'))";
 	$vm_in_db=db_query($query);
 	$success=true;
 	foreach ($vm_in_db as $item) {
@@ -71,7 +71,7 @@ function vmupdate()
 				switch ($error[0])
 				{
 					case -2:
-						$query="INSERT INTO `vms` SELECT ,'$error[1]','$item[user_id]',`title`,`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$item[id]'";
+						$query="INSERT INTO `vms` SELECT ,'$error[1]','$item[user_id]',`title`,`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0','VM was successfully created.'  FROM `tasks` where `tasks`.`id`='$item[id]'";
 						db_query($query);
 						$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',cleared=1";
 						db_query($query);
@@ -100,8 +100,12 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 	$result=shell_exec($cli);
 	if (!empty($result) && !preg_match('/\s/',$result))
 	{
-		$query="INSERT INTO `vms` SELECT '$result','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0' FROM `tasks` where `tasks`.`id`='$task'";
+		$query="INSERT INTO `vms` SELECT '$result','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0','VM was successfully created.' FROM `tasks` where `tasks`.`id`='$task'";
+		register_shutdown_function('onDieSqlVM');
+		ob_start();
 		db_query($query);
+		ob_end_clean();
+		
 		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',`cleared`=1";
 		db_query($query);
 		send_notification ($user_email,'Hi! Your VM called "'.$vmname.'" is ready.<br><hr>Sincerely yours, SelfPortal. In case of any errors - please, contact your system administrators via '.MAIL_ADMIN);
@@ -109,9 +113,23 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 	}
 	else {
 		send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user named ".$user." tried to create VM '".$vmname."' in VSphere. I was not able to find task '".$task."' or a vm by it's name. Please, check it.");
+		send_notification($user_email,"Hello, $user! Something went wrong when you have tried to create VM '".$vmname."' in VSphere. Sysadmins were already notified about it.");
 		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created due to unknown reason. Debug: $result'";
 		db_query($query);
 		return 1;
+	}
+}
+
+function onDieSqlVM(){
+	$message = ob_get_contents();
+	ob_end_clean();
+	if (strpos($message, 'Duplicate') !== false) {
+		write_log(date('Y-m-d H:i:s')." [CRON][ERROR] Duplicate instance was created. Executing DB clearing...");
+		$matches=array();
+		preg_match("/'([0-9])([0-9])'/",$message,$matches);
+		$user=mysqli_fetch_assoc(db_query("SELECT username,email from users where `user_id`=".str_replace("'","",$matches[0])));
+		send_notification($user['email'],"Hello, $user[username]! You have tried to create VM with the same name you already have. Unfortunately we cannot afford you to do this. And we are sorry. Please, recreate it with the other name if needed. Thanks!");
+		db_query("UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created. You have tried to create VM with the same name you already have. We can not afford you to do this, sorry :('");
 	}
 }
 
@@ -125,7 +143,7 @@ function db_query($query){
     } else {
         $result=mysqli_query($conn,$query);
         if (!$result){
-            write_log(date('Y-m-d H:i:s')." [CRON][INFO] Query DB: '".$query."' but error occured: ".mysqli_error($conn));
+            write_log(date('Y-m-d H:i:s')." [CRON][ERROR] Query DB: '".$query."' but error occured: ".mysqli_error($conn));
             die("MySQL error: " . mysqli_error($conn) . "<hr>\nQuery: $query");
         }
     }
@@ -247,6 +265,7 @@ function shutdown_vm(){
 }
 function terminate_vm(){
     $query= "SELECT `id`,`providers`.`title` FROM `vms`,`providers` WHERE `providers`.`Id`=`vms`.`provider` AND DATEDIFF(exp_date,CURDATE()) < ".DAYS_BEFORE_DELETE;
+	$query_terminate="UPDATE `vms` set `status`=i.id and `comment`='VM was terminated due to lifetime expiration' FROM (SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('TERMINATED')) i where `id`=";
     $vms=db_query($query);
     usleep(1000);
     foreach ($vms as $vm) {
@@ -266,8 +285,8 @@ function terminate_vm(){
 		}
         else 
 		{
+			db_query($query_terminate.$vm['id']);
 			write_log(date('Y-m-d H:i:s')." [OPENSTACK][CRON][TERMINATE][INFO] Cron tried to query ".$vm['title'].": '".$cli."' and suceeded.");
-        	db_query("DELETE FROM `vms` WHERE `id`= '".$vm['id']."'");
 		}
     }
 }

@@ -11,16 +11,16 @@ $(document).on("change keyup", "textarea#new_key_input", function (event) {
 $(document).on("click", "button.btn-delete", function (event) {
 	$.post(
 			'check.php', {
-				id: $(event.target).attr('id').split(" ")[1],
+				id: $(event.target).attr('data-id'),
 				action: "delete",
-				type: $(event.target).attr('id').split(" ")[0],
-				title: $(event.target).attr('id').split(" ")[2]
+				type: $(event.target).attr('data-type'),
+				title: $(event.target).attr('data-title')
 			})
 		.done(function (data, status) {
-			js_panel_generate($(event.target).attr('id').split(" ")[0]);
+			js_panel_generate($(event.target).attr('data-panel'));
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -52,7 +52,7 @@ $(document).on("change", "#vms_form_image_list, #vms_form_flavor_list", function
 			if (!found) $("#vms_form_edit_modal_image_help").hide();
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 	break;
 	case 'vsphere': if ($("#vms_form_image_list").find(":selected")[0].text.includes("Windows")) { $("#vms_form_edit_modal_image_help").html('<strong>Warning!</strong> Windows images are big. It will take ~10 minutes to start an instance.'); $("#vms_form_edit_modal_image_help").show(); } else { $("#vms_form_edit_modal_image_help").hide(); }
@@ -85,7 +85,7 @@ $(document).on("click", "button.btn-switch", function (event) {
 			js_panel_generate($(event.target).attr('id').split(" ")[0]);
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -107,7 +107,7 @@ $(document).on("click", "button.btn-domains-edit", function (event) {
 			$('#domainsModal').modal('show');
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 	event.stopImmediatePropagation();
 });
@@ -146,7 +146,7 @@ $(document).on("click", "button.btn-site-add", function (event) {
 			$("#site_edit_modal_date").val(moment().add(1, 'days').format('YYYY-MM-DD'));
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 	event.stopImmediatePropagation();
 	$('#site_edit_modal').attr("data-type", "add");
@@ -199,13 +199,45 @@ $(document).on("click", "button.btn-site-edit", function (event) {
 				});
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 	event.preventDefault();
 	event.stopImmediatePropagation();
 	$('#siteModal').find(':submit').removeClass("disabled");
 	$('#siteModal').find(':submit').addClass("enabled");
 	$('#siteModal').modal('show');
+});
+
+$(document).on("submit", "form.vmassign", function (event) {
+	$.post(
+			'check.php', {
+				vmid: $(event.target).attr("vmid"),
+				vmname: $(event.target).attr("vmname"),
+				user: $("#vms_users_list").val(),
+				action: "assign",
+				provider: $(event.target).attr('data-provider-vm'),
+				type: "vms"
+			})
+		.done(function (data, status) {
+			$(event.target).html("<p>Assigning... Please, wait.</p>");
+			clearTimeout(panelTimer);
+			panelTimer = setTimeout(function () {
+				js_panel_generate('vms');
+				if ($.trim(data)) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
+							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
+							data +
+							'</div>');
+				$('#page-wrapper > div > button').removeClass('disabled');
+			}, 4000);
+
+		})
+		.fail(function () {
+			window.location.replace("/index.php?out=error");
+		});
+	event.preventDefault();
+	event.stopImmediatePropagation();
+	document.getElementById($(event.target).attr('id')).reset();
+	
 });
 
 $(document).on("submit", "form.form_mod", function (event) {
@@ -266,7 +298,7 @@ $(document).on("submit", "form.form_mod", function (event) {
 			});
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 	event.preventDefault();
 	event.stopImmediatePropagation();
@@ -290,24 +322,25 @@ $(document).on("click", "[data-action-snapshots]", function (event) {
 			'check.php', {
 				id: $(event.target).closest('ul').attr('id'),
 				vmid: $(event.target).closest('ul').attr('vmid'),
-				action: $(event.target).attr('data-action-snapshots'),
+				subaction: $(event.target).attr('data-action-snapshots'),
 				provider: $(event.target).closest('ul').attr('data-provider-snapshots'),
-				type: "snapshots"
+				type: "vms",
+				action: "snapshots"
 			})
 		.done(function (data, status) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
-				js_panel_generate($(event.target).closest('ul').attr('data-provider-snapshots')+'snapshots');
-				if (data) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
+				js_panel_generate($('#snapshots_div').attr('panel')+'snapshots');
+				if ($.trim(data)) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
 							'</div>');
 				$('#page-wrapper > div > button').removeClass('disabled');
-			}, 10000);
+			}, 8000);
 
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -322,12 +355,12 @@ $(document).on("click", "[data-action-vm]", function (event) {
 				id: $(event.target).closest('ul').attr('id'),
 				action: $(event.target).attr('data-action-vm'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vm"
+				type: "vms"
 			})
 		.done(function (data, status) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
-				js_panel_generate($(event.target).closest('ul').attr('data-provider-vm')+"vms");
+				js_panel_generate($('#vm_div').attr('panel')+"vms");
 				$("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
@@ -337,7 +370,7 @@ $(document).on("click", "[data-action-vm]", function (event) {
 
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -351,20 +384,61 @@ $(document).on("click", "[data-action-vm-extend]", function (event) {
 				action: "extend",
 				days: $(event.target).attr('data-action-vm-extend'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vm"
+				type: "vms"
 			})
 	.done(function (data, status) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
-				js_panel_generate($(event.target).closest('ul').attr('data-provider-vm')+"vms");
+				js_panel_generate($('#vm_div').attr('panel')+"vms");
 				$('#page-wrapper > div > button').removeClass('disabled');
 			}, 3000);
 
 		})
 	.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 	});
 });
+
+$(document).on("click", "[data-action-vm-assign]", function (event) {
+	var retbody = $.post('check.php', {
+				action: "list",
+				type: "users",
+			})
+			.done(function (data, status) {
+				var arr = JSON.parse(data);
+				modal = '<div class="modal fade" id="vms_users_modal" role="dialog">' +
+					'<div class="modal-dialog modal-sm">' +
+					'<div class="modal-content">' +
+					'<div class="modal-header">' +
+					'<button type="button" class="close" data-dismiss="modal">&times;</button>' +
+					'<h4 class="modal-title">Please, select a user</h4>' +
+					'</div>' +
+					'<form vmname="'+$("#vmname-"+$(event.target).attr('vmid')).html()+'" vmid="' + $(event.target).attr('vmid') + '" data-provider-vm="' + $(event.target).attr('data-provider-vm') +'" class="vmassign"><div class="modal-body">' +
+					'<p><select class="form-control" required name="users" id="vms_users_list">' +
+					'</select></p>' +
+					'</div>' +
+					'<div class="modal-footer">' +
+					'<div class="col-sm-6">' +
+					'<ul style="padding-left: 0px;height: 20px;">' +
+					'<button type="submit" class="form-control btn btn-primary">Assign</button>' +
+					'</ul>' +
+					'</div>' +
+					'<div class="col-sm-6">' +
+					'<button type="clear" class="form-control btn btn-danger">Cancel</button>' +
+					'</div></div></form></div></div></div>';
+				$('#temp_modals').html(modal);
+				$('#vms_users_modal').modal();				
+				var userlist;
+				jQuery.each(arr, function () {
+					userlist+= '<option value="' + this.user_id + '">' + this.username + '</option>';
+				});
+				$("#vms_users_list").html(userlist);
+			})
+			.fail(function () {
+				window.location.replace("/index.php?out=error");
+			});	
+});
+
 $(document).on("click", "[data-action-vm-delete]", function (event) {
 	modal = '<div class="modal fade" id="temp_modal" role="dialog">' +
 		'<div class="modal-dialog modal-sm">' +
@@ -396,10 +470,11 @@ $(document).on("click", "[data-action-vminfo]", function (event) {
 				id: $(event.target).closest('ul').attr('id'),
 				action: $(event.target).attr('data-action-vminfo'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vm"
+				type: "vms"
 			})
 		.done(function (data, status) {
 			var vm = JSON.parse(data);
+			if (typeof vm[0]!==typeof undefined) vm=vm[0];
 			var body = '<div class="container><div class="container row"><strong>Name</strong>: ' + vm.name + '</div>';
 			if (typeof vm.key_name!==typeof undefined) body += '<div class="container row"><strong>SSH Key</strong>: ' + vm.key_name.split("_")[0] + '</div>';
 			if (typeof vm.addresses!==typeof undefined) switch ($(event.target).closest('ul').attr('data-provider-vm'))
@@ -408,7 +483,7 @@ $(document).on("click", "[data-action-vminfo]", function (event) {
 				case "vsphere" : body += '<div class="container row"><strong>IP</strong>: ' + vm.addresses + '</div>'; break;
 			}
 			else body += '<div class="container row"><strong>IP (internal, external)</strong>: Unknown or not assigned</div>';
-			body += '<div class="container row"><strong>Image</strong>: ' + vm.image.split("(")[0] + '</div>';
+			if (typeof vm.image!==typeof undefined) body += '<div class="container row"><strong>Image</strong>: ' + vm.image.split("(")[0] + '</div>';
 			if (typeof vm.flavor!==typeof undefined)
 			{
 				$.post(
@@ -416,7 +491,7 @@ $(document).on("click", "[data-action-vminfo]", function (event) {
 						id: vm.flavor.split(' ')[0],
 						action: "flavordetails",
 						provider: $(event.target).closest('ul').attr('data-provider-vm'),
-						type: "vm"
+						type: "vms"
 				})
 				.done(function (data, status) {
 					var flavor = JSON.parse(data);
@@ -434,20 +509,21 @@ $(document).on("click", "[data-action-vminfo]", function (event) {
 					$('#VMinfomodal').modal('show');
 				})
 				.fail(function () {
-					window.location.replace("/index.php?out=logout");
+					window.location.replace("/index.php?out=error");
 				});
 			}
 			else
 			{
-					body += '<div class="container row"><strong>VCPUs</strong>: ' + vm.vcpus + ' cores</div>';
-					body += '<div class="container row"><strong>RAM</strong>: ' + vm.ram + ' MB</div>';
-					body += '<div class="container row"><strong>Disk</strong>: ' + Math.round(vm.disk*100)/100 + ' GB</div></div>';
-					$('#VMinfomodalbody').html(body);
-					$('#VMinfomodal').modal('show');
+					if (typeof vm.vcpus!==typeof undefined) body += '<div class="container row"><strong>VCPUs</strong>: ' + vm.vcpus + ' cores</div>';
+					if (typeof vm.ram!==typeof undefined) body += '<div class="container row"><strong>RAM</strong>: ' + vm.ram + ' MB</div>';
+					if (typeof vm.disk!==typeof undefined) body += '<div class="container row"><strong>Disk</strong>: ' + Math.round(vm.disk*100)/100 + ' GB</div></div>';
 			}
+			if (typeof vm.comment!==typeof undefined) body += '<div><strong>Comment</strong>: ' + vm.comment + '</div>';
+			$('#VMinfomodalbody').html(body);
+			$('#VMinfomodal').modal('show');
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -457,7 +533,7 @@ $(document).on("click", "[data-action-vnc]", function (event) {
 				id: $(event.target).closest('ul').attr('id'),
 				action: $(event.target).attr('data-action-vnc'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vm"
+				type: "vms"
 			})
 		.done(function (data, status) {
 			var vm = JSON.parse(data);
@@ -475,7 +551,7 @@ $(document).on("click", "[data-action-vnc]", function (event) {
 			}
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -486,7 +562,7 @@ $(document).on("click", "button.assignip", function (event) {
 				id: $(event.target).attr('id'),
 				action: "assignip",
 				provider: $(event.target).attr('data-provider-vm'),
-				type: "vm"
+				type: "vms"
 			})
 		.done(function (data, status) {
 			clearTimeout(panelTimer);
@@ -495,7 +571,7 @@ $(document).on("click", "button.assignip", function (event) {
 			}, 2000);
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 });
 
@@ -620,6 +696,7 @@ $(document).ready(function () {
 	$('#sites').DataTable();
 	count_sites();
 	count_vms();
+	count_snapshots();
 });
 
 function js_panel_generate(tumbler, returndata = null) {
@@ -636,10 +713,10 @@ function js_panel_generate(tumbler, returndata = null) {
 		case "domains":
 			js_panel_generate_domains(returndata);
 			break;
-		case "ldap_users":
+		case "ldapusers":
 			js_panel_generate_users(returndata,"ldap");
 			break;
-		case "internal_users":
+		case "internalusers":
 			js_panel_generate_users(returndata,"internal");
 			break;
 		case "site":
@@ -679,22 +756,23 @@ function js_panel_generate(tumbler, returndata = null) {
 }
 
 function js_panel_generate_snapshots(returndata, provider) {
-	$('#side-menu > li:nth-child(4) > ul').addClass('in');
+	$('#side-menu > li:nth-child(3) > ul').addClass('in');
 	$(document).ready(function () {
 		$('#temp_modals').html('<div class="modal fade" id="temp_modal" role="dialog"><i class="fa fa-spinner fa-spin center fa-white spinner-on"></i></div>');
 		$('#temp_modal').modal('show');
 	});
 	
 	var retbody = $.post('check.php', {
-			panel: $('#' + provider + '_snapshots_div').attr('panel'),
-			action: "list",
+			panel: $('#snapshots_div').attr('panel'),
+			subaction: "list",
 			provider: provider,
-			type: "snapshots"
+			type: "vms",
+			action: "snapshots"
 		})
 		.done(function (data, status) {
-			if (!data) {
+			if (!$.trim(data) || data==="[]") {
 				$('#temp_modal').modal('hide');
-				$('#' + provider + '_snapshots_div').html("<hr><h2 align=\"center\">Unfortunately, no data available here.</h2><hr>");
+				$('#snapshots_div').html("<hr><h2 align=\"center\">Unfortunately, no data available here.</h2><hr>");
 				returndata();
 				return;
 			}
@@ -706,7 +784,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 				'<th>Creation date</th>' +
 				'<th>Expiration Date</th>' +
 				'<th>Actions</th>';
-			if ($('#' + provider + '_snapshots_div').attr('panel') == "admin") 
+			if ($('#snapshots_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
 				body += '<th>Provider</th>';
@@ -718,7 +796,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 				'<th>Creation date</th>' +
 				'<th>Expiration Date</th>' +
 				'<th>Actions</th>';
-			if ($('#' + provider + '_snapshots_div').attr('panel') == "admin") 
+			if ($('#snapshots_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
 				body += '<th>Provider</th>';
@@ -726,7 +804,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 			body += '</tr></tfoot>' +
 				'<tbody>';
 			var arr = JSON.parse(data);
-			$('#' + provider + '_snapshots_div').html("");
+			$('#snapshots_div').html("");
 			if (arr.length > 0) {
 				jQuery.each(arr, function () {
 					body +=
@@ -762,7 +840,7 @@ function js_panel_generate_snapshots(returndata, provider) {
 					body +=
 						'</ul> </div>' +
 						'</td>';	
-				if ($('#' + provider + '_snapshots_div').attr('panel') == "admin") 
+				if ($('#snapshots_div').attr('panel') == "admin") 
 				{
 					body += '<td>' + $(this)[0]["owner"] + '</td>';
 					body += '<td>' + $(this)[0]["provider"] + '</td>';
@@ -770,14 +848,14 @@ function js_panel_generate_snapshots(returndata, provider) {
 				body += '</tr>';
 				});
 				body += '</tbody></table></p>';
-				$('#' + provider + '_snapshots_div').html(body);
+				$('#snapshots_div').html(body);
 				$('#snapshots_list_'+provider).DataTable();
 			}
 			$('#temp_modal').modal('hide');
 			returndata();
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#snapshots_div').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 		});
 }
 
@@ -841,50 +919,14 @@ function js_panel_generate_adgroups(returndata) {
 				});
 			})
 			.fail(function () {
-				window.location.replace("/index.php?out=logout");
+				$('#adgroups').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 			});	
 			
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#adgroups').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 		});	
 }
-
-/*function js_panel_generate_rights(returndata) {
-	var retbody = $.post('check.php', {
-			action: "list",
-			type: "rights",
-		})
-		.done(function (data, status) {
-			var arr = JSON.parse(data);
-			var body =
-				'<div class="row" style="margin-top: 20px;"><div class="col-sm-11"><button type="button" data-provider="openstack" class="btn btn-primary btn-vm-add">Add rights</button></div><div class="col-sm-1"><div onclick="js_panel_generate(\'rights\')"><a href="#"><i class="fa fa-refresh fa-2x"></i></a></div></div></div><hr>'+
-				'<p><table id="rights_list" class="display" cellspacing="0" width="100%">' +
-				'<thead><tr>' +
-				'<th>ID</th>' +
-				'<th>Title</th>' +
-				'<th>Actions</th>' +
-				'</tr></thead><tbody>';
-			rightslist=null;
-			jQuery.each(arr, function () {
-				rightslist+= '<option value="' + this.id + '">' + this.title + '</option>';
-				body +=
-					'<tr><td>' +
-					$(this)[0].id +
-					'</td><td>' +
-					$(this)[0].title +		
-					'</td>' +
-					'<td>'+'<button type="button" id="rights ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+'<button type="button" id="rights ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
-					'</tr>';
-			});
-			body += '</tbody></table></p>'
-			$('#rights').html(body);
-			$('#rights_list').DataTable();
-		})
-		.fail(function () {
-			window.location.replace("/index.php?out=logout");
-		});
-}*/
 
 function js_panel_generate_sshkeys(returndata) {
 
@@ -935,7 +977,7 @@ function js_panel_generate_sshkeys(returndata) {
 			returndata();
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#publickey').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 		});
 }
 
@@ -947,15 +989,15 @@ function js_panel_generate_vms(returndata, provider) {
 	});
 
 	var retbody = $.post('check.php', {
-			panel: $('#' + provider + '_vm_div').attr('panel'),
+			panel: $('#vm_div').attr('panel'),
 			action: "list",
 			provider: provider,
-			type: "vm"
+			type: "vms"
 		})
 		.done(function (data, status) {
-			if (!data) {
+			if (!$.trim(data) || data==="[]") {
 				$('#temp_modal').modal('hide');
-				$('#' + provider + '_vm_div').html("<hr><h2 align=\"center\">Unfortunately, no data available here.</h2><hr>");
+				$('#vm_div').html("<hr><h2 align=\"center\">Unfortunately, no data available here. </h2><hr>");
 				returndata();
 				return;
 			}
@@ -968,7 +1010,7 @@ function js_panel_generate_vms(returndata, provider) {
 				'<th>Status</th>' +
 				'<th>Shutdown Date</th>' +
 				'<th>Action</th>';
-			if ($('#' + provider + '_vm_div').attr('panel') == "admin") 
+			if ($('#vm_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
 				body += '<th>Provider</th>';
@@ -981,7 +1023,7 @@ function js_panel_generate_vms(returndata, provider) {
 				'<th>Status</th>' +
 				'<th>Shutdown Date</th>' +
 				'<th>Action</th>';
-			if ($('#' + provider + '_vm_div').attr('panel') == "admin") 
+			if ($('#vm_div').attr('panel') == "admin") 
 			{
 				body += '<th>Owner</th>';
 				body += '<th>Provider</th>';
@@ -989,13 +1031,13 @@ function js_panel_generate_vms(returndata, provider) {
 			body += '</tr></tfoot>' +
 				'<tbody>';
 			var arr = JSON.parse(data);
-			$('#' + provider + '_vm_div').html("");
+			$('#vm_div').html("");
 			if (arr.length > 0) {
 				jQuery.each(arr, function () {
 					body +=
-						'<tr><td>' +
+						'<tr><td><div id="vmname-'+$(this)[0]["ID"]+'">' +
 						$(this)[0]["Name"].split("_")[0] +
-						'</td><td>' +
+						'</div></td><td>' +
 						$(this)[0]["Image Name"] +
 						'</td><td>';
 					
@@ -1029,9 +1071,10 @@ function js_panel_generate_vms(returndata, provider) {
 						'<span class="caret"></span></button>' +
 						'<ul class="dropdown-menu vm-actions '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["ID"] + '">';
 					if ($(this)[0]["Status"].includes("TERMINATED") || $(this)[0]["Status"].includes("FAILURE")) {
-						body += '<li><a href="#" data-action-vm="clearvm">Remove</a></li>';
+						body += '<li><a href="#" data-action-vminfo="dbinfo">Info</a></li>' +
+						'<li><a href="#" data-action-vm="clearvm">Remove</a></li>';
 					}
-					else if ($(this)[0]["Status"].includes("MAINTENANCE")) { body += '<li><a href="#" data-action-vminfo="info">Info</a></li>';}
+					else if ($(this)[0]["Status"].includes("MAINTENANCE") || $(this)[0]["Status"].includes("BUILDING")) { body += '<li><a href="#" data-action-vminfo="info">Info</a></li>';}
 					else {
 						body +=
 						'<li><a href="#" data-action-vminfo="info">Info</a></li>' +
@@ -1045,26 +1088,49 @@ function js_panel_generate_vms(returndata, provider) {
 					body +=
 						'</ul> </div>' +
 						'</td>';
-					if ($('#' + provider + '_vm_div').attr('panel') == "admin")
+					if ($('#vm_div').attr('panel') == "admin")
 					{
-						body += '<td>' + $(this)[0]["owner"] + '</td>';
+						body += '<td>' + (typeof($(this)[0]["owner"])===typeof(undefined)?('<button data-action-vm-assign="assign" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" vmid="' + $(this)[0]["ID"] + '" class="btn-sm btn btn-primary">Assign</button>'):$(this)[0]["owner"])+ '</td>';
 						body += '<td>' + $(this)[0]["provider"] + '</td>';
 					}
 					body += '</tr>';
 				});
 				body += '</tbody></table></p>';
-				$('#' + provider + '_vm_div').html(body);
+				$('#vm_div').html(body);
 				$('#vm_list_'+provider).DataTable();
 			}
 			$('#temp_modal').modal('hide');
 			returndata();
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#vm_div').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 		});
 }
 
 function js_panel_generate_users(returndata,provider) {
+	if (provider.toUpperCase()==="INTERNAL" && document.getElementById("users_internal_add")==null)
+	{
+		var body=
+			'<p><div class="hide alert alert-danger" id="users_add_form_return">' +
+			'<strong>Alert!</strong> User were not added. This name already exists in the list.' +
+			'</div></p>' +
+			'<form class="form-inline form_mod" data-type="add" id="users_internal_add" provider="internal" style="padding:10px 0px 10px">' +
+			'<div class="form-group">' +
+			'<input type="text" class="form-control" id="users_internal_add_username" name="username" placeholder="Username (required)" required">' +
+			'<input type="password" class="form-control" id="users_internal_add_password" name="password" placeholder="Password (required)" required">'+
+			'<input type="email" class="form-control" id="users_internal_add_email" name="email" placeholder="Email" required">' +
+			'<select class="form-control" required name="department" id="users_internal_add_departments_list"></select>' +
+			'<input class="form-check-input inherit_checkbox" type="checkbox" id="users_internal_add_checkbox"> Inherit department quotas' +
+			'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_proc_quota" name="proc_quota" placeholder="CPU Quota, Cores">' +
+			'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_ram_quota" name="ram_quota" placeholder="RAM Quota, MB">' +
+			'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_disk_quota" name="disk_quota" placeholder="Disk Quota, GB">' +
+			'<select class="form-control" required name="rights" id="users_internal_add_rights_list"></select>' +
+			'</div>' +
+			'<button type="submit" class="btn btn-primary">Add</button>' +
+			'</form>';
+		$('#'+provider+'_users').append(body);
+	}
+	else $("#users_list_internal_wrapper").remove();
 	var retbody = $.post('check.php', {
 			action: "list",
 			type: "users",
@@ -1073,29 +1139,8 @@ function js_panel_generate_users(returndata,provider) {
 		.done(function (data, status) {
 			var arr = JSON.parse(data);
 			var body='';
-			if (provider.toUpperCase()==="INTERNAL")
-			{
-				
-				body+=
-				'<p><div class="hide alert alert-danger" id="users_add_form_return">' +
-				'<strong>Alert!</strong> User were not added. This name already exists in the list.' +
-				'</div></p>' +
-				'<form class="form-inline form_mod" data-type="add" id="users_internal_add" provider="internal" style="padding:10px 0px 10px">' +
-				'<div class="form-group">' +
-				'<input type="text" class="form-control" id="users_internal_add_username" name="username" placeholder="Username (required)" required">' +
-				'<input type="password" class="form-control" id="users_internal_add_password" name="password" placeholder="Password (required)" required">'+
-				'<input type="email" class="form-control" id="users_internal_add_email" name="email" placeholder="Email" required">' +
-				'<select class="form-control" required name="department" id="users_internal_add_departments_list"></select>' +
-				'<input class="form-check-input inherit_checkbox" type="checkbox" id="users_internal_add_checkbox"> Inherit department quotas' +
-				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_proc_quota" name="proc_quota" placeholder="CPU Quota, Cores">' +
-				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_ram_quota" name="ram_quota" placeholder="RAM Quota, MB">' +
-				'<input type="number" class="form-control inherit_control" step="1" min="0" id="users_internal_add_disk_quota" name="disk_quota" placeholder="Disk Quota, GB">' +
-				'<select class="form-control" required name="rights" id="users_internal_add_rights_list"></select>' +
-				'</div>' +
-				'<button type="submit" class="btn btn-primary">Add</button>' +
-				'</form>';
-			}
-			body+='<p><table id="users_list_'+provider+'" class="display" cellspacing="0" width="100%">' +
+			if (!$.trim(data) || data=="[]") { $("#users_p").remove(); return; }
+			body+='<p id="users_p"><table id="users_list_'+provider+'" class="display" cellspacing="0" width="100%">' +
 				'<thead><tr>' +
 				'<th>ID</th>' +
 				'<th>Username</th>' +
@@ -1116,11 +1161,11 @@ function js_panel_generate_users(returndata,provider) {
 					$(this)[0].department +
 					'</td>' +
 					(typeof($(this)[0].rights)!==typeof(undefined) ? '<td>'+$(this)[0].rights+'</td>' : '') +
-					'<td>'+/*(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+*/'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+*/'<button type="button" data-type="users" data-id="' + $(this)[0].user_id + '" data-panel="'+provider+'users" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>';
-			$('#'+provider+'_users').html(body);
+			$('#'+provider+'_users').append(body);
 			$('#users_list_'+provider).DataTable();
 			
 			var retbody = $.post('check.php', {
@@ -1139,7 +1184,7 @@ function js_panel_generate_users(returndata,provider) {
 				});
 			})
 			.fail(function () {
-				window.location.replace("/index.php?out=logout");
+				window.location.replace("/index.php?out=error");
 			});	
 			
 			var retbody = $.post('check.php', {
@@ -1158,12 +1203,12 @@ function js_panel_generate_users(returndata,provider) {
 				});
 			})
 			.fail(function () {
-				window.location.replace("/index.php?out=logout");
+				window.location.replace("/index.php?out=error");
 			});	
 			
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 
@@ -1219,7 +1264,7 @@ function js_panel_generate_departments(returndata) {
 			$('#departments_list').DataTable();
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 
@@ -1269,7 +1314,7 @@ function js_panel_generate_domains(returndata) {
 
 			})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 
@@ -1310,7 +1355,7 @@ function js_panel_generate_blacklist(returndata) {
 
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 
@@ -1323,6 +1368,12 @@ function js_panel_generate_site(returndata) {
 			type: "site"
 		})
 		.done(function (data, status) {
+			if (!$.trim(data) || data==="[]") {
+				$('#temp_modal').modal('hide');
+				$('#sites_table_div').html("<hr><h2 align=\"center\">Unfortunately, no data available here. </h2><hr>");
+				returndata();
+				return;
+			}
 			var arr = JSON.parse(data);
 			var tablebody = '<p><div class="hide alert alert-danger" id="site_edit_modal_return">' +
 				'<strong>Alert!</strong> Site were not added. This name already exists in the global list.' +
@@ -1399,7 +1450,7 @@ function js_panel_generate_site(returndata) {
 				});
 		})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#sites_table_div').html("<hr><h2 align=\"center\">Some kind of error occurred. Either you have no permissions for this kind of action, either SelfPortal does not installed correctly.</h2><hr>");
 		});
 }
 
@@ -1428,7 +1479,7 @@ function check_form_name_db(event) {
 
 			})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 
@@ -1463,7 +1514,7 @@ function check_form_blacklist_db(event) {
 				};
 			})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 }
 //Get activ sites for user
@@ -1476,9 +1527,11 @@ function count_sites() {
 			function (data, status) {
 				count = JSON.parse(data);
 				$('#site_online').html("Active " + count["0"]["COUNT(site_id)"]);
+				$('#site_online_side').html(count["0"]["COUNT(site_id)"]);
 			})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#site_online').html("Active UNKNOWN");
+			$('#site_online_side').html("UNKNOWN");
 		});
 }
 
@@ -1491,9 +1544,29 @@ function count_vms() {
 			function (data, status) {
 				count_vm = JSON.parse(data);
 				$('#vm_online').html(count_vm["0"]["COUNT(id)"]);
+				$('#vm_online_side').html(count_vm["0"]["COUNT(id)"]);
 			})
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#vm_online').html("UNKNOWN");
+			$('#vm_online_side').html("UNKNOWN");
+		});
+}
+
+function count_snapshots() {
+	$.post('check.php', {
+			subaction: "count",
+			type: "vms",
+			action: "snapshots"
+		})
+		.done(
+			function (data, status) {
+				count_vm = JSON.parse(data);
+				$('#snapshots_online').html(count_vm["0"]["COUNT(`snapshot_id`)"]);
+				$('#snapshots_online_side').html(count_vm["0"]["COUNT(`snapshot_id`)"]);
+			})
+		.fail(function () {
+			$('#snapshots_online').html("UNKNOWN");
+			$('#snapshots_online_side').html("UNKNOWN");
 		});
 }
 
@@ -1532,13 +1605,13 @@ function show_notifications() {
 				if (counter > 2 && !$("#expandnotifications").html()) {
 					$('#notificationsdashboard').append('<a href="#notificationshiddendashboardgroup" data-toggle="collapse" id="expandnotifications" class="btn btn-default btn-block">Show all alerts</a>');
 				} else if (!$('.notificationsvisiblegroup').html()) {
-					$('.notificationsvisiblegroup').append('<a href="#" class="nolink">You have no notifications!</a>');
+					$('.notificationsvisiblegroup').html('<a href="#" class="nolink">You have no notifications!</a>');
 					$('.notifymark').removeClass('redicon');
 				}
 			}
 		)
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			$('#notificationsdashboard').append('<a href="#" class="nolink">Error occurred while retrieving some notifications!</a>');
 		});
 }
 
@@ -1554,7 +1627,7 @@ function get_flavor() {
 	$.post('check.php', {
 			provider: $('#vms_form').attr("provider"),
 			action: "flavor",
-			type: "vm"
+			type: "vms"
 		}).done(
 			function (data, status) {
 				var arr = JSON.parse(data);
@@ -1574,7 +1647,7 @@ function get_flavor() {
 			}
 		)
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 
 }
@@ -1583,7 +1656,7 @@ function get_images() {
 	$.post('check.php', {
 			provider: $('#vms_form').attr("provider"),
 			action: "images",
-			type: "vm"
+			type: "vms"
 		}).done(
 			function (data, status) {
 				var arr = JSON.parse(data);
@@ -1595,7 +1668,7 @@ function get_images() {
 			}
 		)
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+			window.location.replace("/index.php?out=error");
 		});
 
 }
@@ -1630,7 +1703,10 @@ function get_keys() {
 			}
 		)
 		.fail(function () {
-			window.location.replace("/index.php?out=logout");
+					$('.key_info').html('<div id="vms_form_edit_modal_key_help" class="alert alert-danger">' +
+						'<strong>Error!</strong> SSH key missing! Error occurred while retrieving keys list. Please, contact your system administrators.' +
+						'</div>');
+					return key;
 		});
 	return key;
 }

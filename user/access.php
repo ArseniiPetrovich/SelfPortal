@@ -22,7 +22,7 @@ function access_level_internal($resource,$action,$provider,$resource_id) {
     if (mysqli_num_rows(sql_query("SELECT * FROM `permissions` where `actions`=(SELECT `id` from `actions` where `resource`='all' AND `action`='all') and `rights`=".$_SESSION['access']))) { return $access=true;}
     $rights=mysqli_fetch_array(sql_query("SELECT MAX(`bypass_resource_check`) FROM `permissions` where `actions` IN (SELECT `id` FROM `actions` where (`resource`='$resource' or `resource`='all')  AND (`action`='$action' OR `action`='all'))  AND (`provider`='$provider' OR `provider` IS NULL) AND `rights`=".$_SESSION['access']));
 	if ($rights[0]==0 && !is_null($rights[0])) { 
-		return sql_num_rows(sql_query("SELECT * from `$resource` WHERE `user_id`='$_SESSION[user_id]' and `id`='$resource_id'")) > 0
+		return mysqli_num_rows(sql_query("SELECT * from `$resource` WHERE `user_id`='$_SESSION[user_id]' and `id`='$resource_id'")) > 0
 			? true
 			: false ;
 	}
@@ -45,7 +45,7 @@ function sql_query($query) {
 }
 
 function write_log($entry){
-    $file = fopen(LOG_FILE, "a");
+    $file = fopen(LOG_FOLDER."/selfportal.log", "a");
     $entry=preg_replace("/--os-username .* --os-password .* --os-region-name/","--os-username ******** --os-password ******* --os-region-name",$entry);
 	$entry=preg_replace("/--username .* --password .* /","--username ******** --password *******",$entry);
     fwrite($file,$entry."\n");

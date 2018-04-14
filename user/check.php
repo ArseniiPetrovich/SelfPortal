@@ -8,20 +8,27 @@ include_once $_SERVER['DOCUMENT_ROOT'].'/config/config.php';
 include_once ("user.inc");
 include_once ("providers.php");
 include_once ("access.php");
-    if (!@access_level($_POST['type'], $_POST['action'],$_POST['provider'],$_POST['id'])) die (http_response_code(401));
+    if (
+		!@access_level(
+			isset($_POST['subaction'])?$_POST['action']:$_POST['type'],
+			isset($_POST['subaction'])?$_POST['subaction']:$_POST['action'],
+			$_POST['provider'],
+			$_POST['id'])
+	   ) die (http_response_code(401));
+
     $flag=false;
     $multiquery=false;
 	$cli_flag=false;
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE);
+	if (!empty($_POST['provider']) && isset($_POST['provider']))
+	{
+		if (!server_db("SELECT `enabled` from `providers` where `title`='".$_POST['provider']."'")) {die ("DISABLED");}
+		$provider_id=mysqli_fetch_assoc(server_db("SELECT `id` FROM `providers` where LOWER(`title`)=LOWER('".$_POST['provider']."')"));
+	}
+	else $_POST['provider']='';
     switch ($_POST['type']) {
         case "vm":
-        case "vms":
-		if (!empty($_POST['provider']))
-		{
-			if (!server_db("SELECT `enabled` from `providers` where `title`='".$_POST['provider']."'")) {die ("DISABLED");}
-			$provider_id=mysqli_fetch_assoc(server_db("SELECT `id` FROM `providers` where LOWER(`title`)=LOWER('".$_POST['provider']."')"));
-		}
-		else $_POST['provider']='';
+        case "vms":		
         switch ($_POST['provider']) {
             case "openstack":
                 switch ($_POST['action']) {
@@ -58,7 +65,7 @@ include_once ("access.php");
                     case "info": $openstack_cli .=" server show '$_POST[id]' -f json";
                         $cli_flag=true;
                         break;
-					case "backupvm": if (mysqli_num_rows(server_db("SELECT * FROM `snapshots` where `vm_id` like '".$_POST['id']."'"))>0) {
+					case "backupvm": if (mysqli_num_rows(server_db("SELECT * FROM `snapshots` where `vm_id` like '".$_POST['id']."' and `status` like 'ENABLED'"))>0) {
 							echo "Snapshot for this VM already exists! Delete it first.";
 							return;
 						} 
@@ -67,7 +74,7 @@ include_once ("access.php");
 						$json_cli_result=json_decode($cli_result);
 						if ($json_cli_result)
 						{
-							$query="INSERT INTO `snapshots` VALUES ('".$json_cli_result->{'id'}."','".$_POST['id']."','".date("Y-m-d H:i:s")."','".date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','ENABLED',0)";
+							$query="INSERT INTO `snapshots` VALUES ('".$json_cli_result->{'id'}."','".$_POST['id']."','".date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','<span class=\"label label-success\">ENABLED</span>',0)";
 							$openstack_cli.=" image unset --property sp ".$json_cli_result->{'id'};
 							$cli_flag=true;
 						}
@@ -110,6 +117,39 @@ include_once ("access.php");
                     case "assignip":
                         add_ip_to_server($_POST['id'],get_free_ip());
                         break;
+					case "assign":
+                        $query="INSERT INTO `vms` (id,ip,user_id,title,exp_date,provider,status,cleared) SELECT '$_POST[vmid]',NULL,'$_POST[user]','$_POST[vmname]','".date('Y-m-d', strtotime("+1 days"))."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='ENABLED'),0 from `providers` where `title`='OpenStack'";
+                        break;
+					case "dbinfo": 
+						$query="SELECT `vms`.`id`,`vms`.`ip` as addresses,`vms`.`title` as name,`vms`.`comment` from `vms` WHERE `vms`.`id`= '".$_POST['id']."' UNION SELECT `tasks`.`id`,'',`tasks`.`title` as name,`tasks`.`comment` from `tasks` where `tasks`.`id`='".$_POST['id']."'";
+                        break;
+					case "clearvm":
+						$query="UPDATE `vms` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'";
+                        break;	
+					case "snapshots":
+						switch ($_POST['subaction']){
+						case "terminate":
+							$query="UPDATE `snapshots` SET `status`='<span class=\"label label-danger\">TERMINATED</span>' WHERE `snapshot_id`= '".$_POST['id']."'";
+							$openstack_cli .= "  image delete ".$_POST['id'];						
+							$cli_flag=true;
+							break;
+						case "clear": 
+							$query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
+						case "extend":
+                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
+                    		break;
+						case "info": $openstack_cli .=" image show ".$_POST['id'];
+                        	$cli_flag=true;
+							break;
+						case "restore":
+							restore_vm($_POST['id'],$_POST['provider']);
+							//$cli_flag=true;
+							break;
+						case "list":
+                        	get_snapshots($_POST['panel'],$_POST['provider']);
+							break;
+						}
+						break;
                 }
 				$cli=$openstack_cli;
 				break;
@@ -161,14 +201,14 @@ include_once ("access.php");
                     case "terminatevm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Destroy";
                         $cli_flag=true;
                         $multiquery=true;
-                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='TERMINATED');UPDATE `vms` set `status`=@A WHERE `id`= '$_POST[id]';";
+                        $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='TERMINATED');UPDATE `vms` set `status`=@A and `comment`='VM was terminated due to user request' WHERE `id`= '$_POST[id]';";
                         break;
                     case "rebootvm": $vsphere_cli .="controlvm.pl --vmname '$_POST[id]' --action Restart";
                         $multiquery=true;
                         $query="SET @A=(SELECT `vms_statuses`.`id` FROM `vms_statuses` where title='ENABLED');UPDATE `vms` SET `status`=@A where `vms`.`id`='$_POST[id]';";
                         $cli_flag=true;
                         break;
-					case "backupvm": if (mysqli_num_rows(server_db("SELECT * FROM `snapshots` where `vm_id` like '".$_POST['id']."'"))>0) {
+					case "backupvm": if (mysqli_num_rows(server_db("SELECT * FROM `snapshots` where `vm_id` like '".$_POST['id']."' and `status` like 'ENABLED'"))>0) {
 							echo "Snapshot for this VM already exists! Delete it first.";
 							return;
 						} 
@@ -176,7 +216,7 @@ include_once ("access.php");
 						$cli_result=shell_exec($backup_string);
 						if (strpos($cli_result,"snapshot-")!==false)
 						{
-							$query="INSERT INTO `snapshots` VALUES ('".$cli_result."','".$_POST['id']."','".date("Y-m-d H:i:s")."','".date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','ENABLED',0)";
+							$query="INSERT INTO `snapshots` VALUES ('".$cli_result."','".$_POST['id']."','".date('Y-m-d', strtotime("+".(defined(SNAPSHOT_DEFAULT_PERIOD)?SNAPSHOT_DEFAULT_PERIOD:1)." days"))."','".$provider_id['id']."','<span class=\"label label-success\">ENABLED</span>',0)";
 						}
 						else {
 							echo "Error. Backup cannot be created: ".$cli_result;
@@ -191,6 +231,38 @@ include_once ("access.php");
                         break;
                     case "flavor": echo json_encode(array(), JSON_FORCE_OBJECT); return;
                         break;
+					case "assign":
+                        $query="INSERT INTO `vms` (id,ip,user_id,title,exp_date,provider,status,cleared) SELECT '$_POST[vmid]',NULL,'$_POST[user]','$_POST[vmname]','".date('Y-m-d', strtotime("+1 days"))."',`providers`.`id`,(select `id` from `vms_statuses` where `title`='ENABLED'),0 from `providers` where `title`='vSphere'";
+                        break;
+					case "dbinfo": 
+						$query="SELECT `vms`.`id`,`vms`.`ip` as addresses,`vms`.`title` as name,`vms`.`comment` from `vms` WHERE `vms`.`id`= '".$_POST['id']."' UNION SELECT `tasks`.`id`,'',`tasks`.`title` as name,`tasks`.`comment` from `tasks` where `tasks`.`id`='".$_POST['id']."'";
+                        break;
+					case "clearvm":
+						if (strpos($_POST['id'], 'task-') !== false) {
+							$query="UPDATE `tasks` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'";
+						}
+						else $query="UPDATE `vms` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'";
+                        break;	
+					case "snapshots":
+						switch ($_POST['subaction']){
+						case "list":
+                        	get_snapshots($_POST['panel'],$_POST['provider']);
+							return;
+						case "terminate": 
+							$query="UPDATE `snapshots` SET `status`='<span class=\"label label-danger\">TERMINATED</span>' WHERE `snapshot_id`= '".$_POST['id']."'";
+							$vsphere_cli .= "snapshotmanager.pl --vmname '".$_POST['vmid']."' --snapshotname '".$_POST['id']."' --children 0 --folder '".VMW_VM_FOLDER."' --operation remove";
+							$cli_flag=true;
+							break;
+						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
+						case "extend":
+                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
+                    		break;
+						case "info": break;
+						case "restore":
+							restore_vm($_POST['id'],$_POST['vmid'],$_POST['provider']);
+							break;
+						}
+						break;
                 }
 				$cli=$vsphere_cli." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
 				break;
@@ -208,73 +280,22 @@ include_once ("access.php");
 					case "clearvm":
 						$query="UPDATE `vms` SET `cleared`=1 WHERE `id`= '".$_POST['id']."'";
                         break;	
+					case "dbinfo": 
+						$query="SELECT `vms`.`id`,`vms`.`ip` as addresses,`vms`.`title` as name,`vms`.`comment` from `vms` WHERE `vms`.`id`= '".$_POST['id']."' UNION SELECT `tasks`.`id`,'',`tasks`.`title` as name,`tasks`.`comment` from `tasks` where `tasks`.`id`='".$_POST['id']."'";
+                        break;
+					case "snapshots":
+						switch ($_POST['subaction']){
+							case "list":
+								//$vsphere_cli .="snapshots.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
+                        		if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
+								break;
+							case "count":
+								$query = "SELECT COUNT(`snapshot_id`) FROM `snapshots` WHERE `vm_id` in (SELECT `id` from `vms` where user_id='".$_SESSION['user_id']."') and `status` like '%ENABLED%'";
+								break;
+						}					
 				}
         }
         break;
-		case "snapshots":
-			switch ($_POST['provider'])
-			{
-				case "openstack":
-					switch ($_POST['action']){
-						case "list":
-                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
-							return;
-						case "terminate":
-							$query="UPDATE `snapshots` SET `status`='TERMINATED' WHERE `snapshot_id`= '".$_POST['id']."'"; break;
-							$openstack_cli .= "  image delete ".$_POST['id'];
-							$cli_flag=true;
-							break;
-						case "clear": 
-							$query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
-						case "extend":
-                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
-                    		break;
-                		case "count":
-                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE vm_id in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
-                    		break;
-						case "info": $openstack_cli .=" image show ".$_POST['id'];
-                        	$cli_flag=true;
-							break;
-						case "restore":
-							restore_vm($_POST['id'],$_POST['provider']);
-							//$cli_flag=true;
-							break;
-					}
-					$cli=$openstack_cli;
-					break;	
-				case "vsphere":
-					switch ($_POST['action']){
-						case "list":
-                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
-							return;
-						case "terminate": 
-							$query="UPDATE `snapshots` SET `status`='TERMINATED' WHERE `snapshot_id`= '".$_POST['id']."'";
-							$vsphere_cli .= "snapshotmanager.pl --vmname '".$_POST['vmid']."' --snapshotname '".$_POST['id']."' --children 0 --folder '".VMW_VM_FOLDER."' --operation remove";
-							$cli_flag=true;
-							break;
-						case "clear": $query="UPDATE `snapshots` SET `cleared`=1 WHERE `snapshot_id`= '".$_POST['id']."'"; break;
-						case "extend":
-                			$query="UPDATE `snapshots` set `exp_date`=DATE_ADD(`snapshots`.`exp_date`, INTERVAL '$_POST[days]' DAY) WHERE id='$_POST[id]'";
-                    		break;
-                		case "count":
-                    		$query = "SELECT COUNT(id) FROM `snapshots` WHERE `vm_id` in (SELECT id from vms where user_id='".$_SESSION['user_id']."')";
-                    		break;
-						case "info": break;
-						case "restore":
-							restore_vm($_POST['id'],$_POST['vmid'],$_POST['provider']);
-							break;
-					}
-					$cli=$vsphere_cli." --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."'";
-					break;
-				default:
-					switch ($_POST['action']){
-						case "list":
-							//$vsphere_cli .="snapshots.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --datacenter '".VMW_DATACENTER."'";;
-                        	if (($_POST['panel']) == "user" || ($_POST['panel']) == "admin") get_snapshots($_POST['panel'],$_POST['provider']);
-							return;
-					}
-			}
-		break;	
         case "keys":
             switch ($_POST['action']){
                 case "list":
@@ -336,9 +357,9 @@ include_once ("access.php");
                 break;
 		}
           break;
+	  case "user":
       case "users":
 			if (!empty($_POST['provider'])) $users_table=mysqli_fetch_assoc(server_db("SELECT `table_name` from `user_types` where LOWER(`title`) like LOWER('".$_POST['provider']."')"))['table_name'];
-			else $_POST['provider']='';
 			switch ($_POST['provider'])
 			{
 				case "ldap":
@@ -346,9 +367,6 @@ include_once ("access.php");
             		case "list":
                 		$query = "SELECT `user_id`,`username`,`email`,`departments`.`title` FROM `users`,`departments` where `user_type`=(SELECT id from `user_types` where LOWER(`title`) like LOWER('ldap')) and `departments`.`id`=`users`.`department`";
                 		break;
-					case "delete":
-						$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
-						break;
 				}
 				break;
 				case "internal":
@@ -357,16 +375,38 @@ include_once ("access.php");
                 		$query = "SELECT `users`.`user_id`,`username`,`email`,`departments`.`title` as department,`rights`.`title` as rights FROM `users`,`departments`,`rights`,`$users_table` where `user_type`=(SELECT id from `user_types` where LOWER(`title`) like LOWER('internal')) and `departments`.`id`=`users`.`department` and `rights`.`id`=`$users_table`.`rights` and `users`.`user_id`=`$users_table`.`global_uid`";
                 		break;
 					case "add": 
-						if (mysqli_num_rows(server_db("SELECT * from `users` where LOWER(`username`) like '".$_POST['name']['username']."'"))) return -1;
-						$multiquery=true; 
+						if (mysqli_num_rows(server_db("SELECT * from `users` where LOWER(`username`)=LOWER('".$_POST['name']['username']."')"))) return -1;
+						$multiquery=true; 					
+						$proc_quota=empty($_POST['name']['proc_quota'])?"null":$_POST['name']['proc_quota'];
+						$ram_quota=empty($_POST['name']['ram_quota'])?"null":$_POST['name']['ram_quota'];
+						$disk_quota=empty($_POST['name']['disk_quota'])?"null":$_POST['name']['disk_quota'];
 						$query="SET @A=(SELECT id from `user_types` where LOWER(`title`) like LOWER('internal'));
-						INSERT INTO `users` VALUES(NULL,'".$_POST['name']['username']."','".$_POST['name']['email']."','".$_POST['name']['department']."',@A,0,NULL,NULL,NULL);
-						SET @B=(SELECT id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
-						INSERT INTO `".$users_table."` VALUES (NULL,@B,'".password_hash($_POST['name']['password'],PASSWORD_DEFAULT)."','".$_POST['name']['rights']."');";
-						echo $query;
+						INSERT INTO `users` 
+						VALUES(NULL,
+						'".$_POST['name']['username']."',
+						'".$_POST['name']['email']."',
+						'".$_POST['name']['department']."',
+						@A,
+						".$_POST['checkbox'].",
+						".$proc_quota.",
+						".$ram_quota.",
+						".$disk_quota.");
+						SET @B=(SELECT user_id FROM `users` where `username`='".$_POST['name']['username']."' and `user_type`=@A);
+						INSERT INTO `".$users_table."` VALUES 
+						(NULL,
+						@B,
+						'".password_hash($_POST['name']['password'],PASSWORD_DEFAULT)."',
+						'".$_POST['name']['rights']."');";
 						break;
+				}
+				break;
+				default:
+				switch ($_POST['action']){
+            		case "list":	
+						$query = "SELECT `users`.`user_id`,`username`,`email`,`departments`.`title` as department FROM `users`,`departments` where `departments`.`id`=`users`.`department`";
+                		break;
 					case "delete":
-						$query="DELETE FROM `users` where `id`='".$_POST['id']."'";
+						$query="DELETE FROM `users` where `user_id`='".$_POST['id']."'";
 						break;
 				}
 				break;
@@ -477,9 +517,8 @@ include_once ("access.php");
 	    if (!$result)
             {
                 echo "false";
-                $conn->close();
-                write_log(date('Y-m-d H:i:s')." [DB][ERROR] User ".$_SESSION['user']." (id ".$_SESSION['user_id'].") with access level ".$_SESSION['access']." tried to query DB: '".$query."', but DB connection error occured: ".mysqli_error($conn));
-                die("MySQL error: " . mysqli_error($conn) . "<hr>\nmultiquery: $query");
+                write_log(date('Y-m-d H:i:s')." [DB][ERROR] User ".$_SESSION['user']." (id ".$_SESSION['user_id'].") with access level ".$_SESSION['access']." tried to query DB: '".$query."', but DB connection error occured: ".mysqli_error($conn)); 
+				die("MySQL error: " . mysqli_error($conn) . "<hr>\nmultiquery: $query");
             }
             else echo "true"; 
             usleep(1000);

@@ -170,12 +170,13 @@ function get_vms($panel,$provider=null) {
 	
 	foreach ($task_in_db as $task) {	
         $taskarray=new stdClass();
-        $taskarray->ID = -1;
+        $taskarray->ID = $task['id'];;
         $taskarray->date = $task['exp_date'];
         $taskarray->owner = $task['username'];
         $taskarray->extendlimit=DAYS_USER_CAN_EXTEND_VM;
         $taskarray->Status=$task['vmstatus'];
         $taskarray->Image="Deploying";
+		$taskarray->provider=$task['provider'];
         $taskarray->Name=$task['title'];
         $vm_user_list[]=$taskarray;
     }
@@ -184,7 +185,7 @@ function get_vms($panel,$provider=null) {
 		if (strpos($vm['vmstatus'], 'TERMINATED') !== false)
 		{
 			$vmarray=new stdClass();
-			$vmarray->ID = -1;
+			$vmarray->ID = $vm['id'];
 			$vmarray->date = $vm['exp_date'];
 			$vmarray->owner = $vm['username'];
 			$vmarray->Status=$vm['vmstatus'];
