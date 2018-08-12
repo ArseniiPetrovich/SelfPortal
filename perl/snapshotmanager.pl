@@ -563,7 +563,6 @@ sub remove_snapshot {
             $snapshot->RemoveSnapshot (removeChildren => $children);
              Util::trace(0, "\nOperation :: Remove Snapshot ". $remove_snapshot .
                             " For Virtual Machine ". $_->name 
-                            . " under host $hostname"
                             ." completed successfully\n");
          };
          if ($@) {

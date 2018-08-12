@@ -345,9 +345,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
     (crontab -l 2>/dev/null; echo "0 8 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action notify" ) | crontab -
 	(crontab -l 2>/dev/null; echo "1 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action disable" ) | crontab -
-	(crontab -l 2>/dev/null; echo "5 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action delete" ) | crontab -
-	(crontab -l 2>/dev/null; echo "10 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action shutdown_vm" ) | crontab -
-	(crontab -l 2>/dev/null; echo "15 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_vm" ) | crontab -
+    (crontab -l 2>/dev/null; echo "5 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_snapshot" ) | crontab -
+	(crontab -l 2>/dev/null; echo "10 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action delete" ) | crontab -
+	(crontab -l 2>/dev/null; echo "15 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action shutdown_vm" ) | crontab -
+	(crontab -l 2>/dev/null; echo "20 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_vm" ) | crontab -
 	while [[ -z "$daysbeforeshutdown" ]]
 	do
   		read -p "When user must start receiving notifications about the automatic VM shutdown (like 5 days before expiration date). Enter number in days only: " daysbeforeshutdown

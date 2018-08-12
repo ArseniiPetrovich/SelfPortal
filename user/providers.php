@@ -4,31 +4,6 @@ $openstack_cli="openstack --os-auth-url ".OS_AUTH_URL." --os-project-id ".OS_PRO
 $vsphere_cli="/usr/bin/perl ".$_SERVER["DOCUMENT_ROOT"]."/perl/";
 $cli_flag=false;
 
-function fetch($entity,$provider)
-{
-	switch ($_POST['provider'])
-	{
-		case "openstack":
-			switch ($entity)
-			{
-				case "vm":
-				case "vms":
-				case "snapshot": break;
-			}
-			break;
-		case "vsphere":
-			switch ($entity)
-			{
-				case "vm":
-				case "vms":
-				case "snapshot": break;
-			}
-			break;
-		default: fetch ($entity,"openstack"); fetch($entity,"vsphere"); return;
-	}
-}
-
-
 function get_snapshots($panel,$provider)
 {
 	
@@ -46,17 +21,14 @@ function get_snapshots($panel,$provider)
 	function fetch_vsphere_snapshots()
 	{
 		$snapshots=json_decode(shell_exec($GLOBALS['vsphere_cli']."snapshotmanager.pl --url ".VMW_SERVER."/sdk/webService --folder '".VMW_VM_FOLDER."' --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --operation list")); 
-		return set_value_in_whole_array ($snapshots,"provider","vSphere");
+		if ($snapshots) return set_value_in_whole_array ($snapshots,"provider","vSphere");
+        else return array();
 	}
 	
 	$query="SELECT `snapshot_id` as ID, `vms`.`title` as vmname, `vms`.`id` as vmid, `snapshots`.`exp_date`, `providers`.`title` as provider, `snapshots`.`status`, `users`.`username` FROM `vms`,`snapshots`,`providers`,`users` WHERE `snapshots`.`cleared`=0 AND `users`.`user_id`=`vms`.`user_id` AND `snapshots`.`vm_id`=`vms`.`id` AND `snapshots`.`provider`=`providers`.`id`";
-	if (!empty($provider))
-	{
-		$query.=" AND `snapshots`.`provider`=(SELECT `Id` from `providers` where LOWER(`title`) like LOWER('".$provider."'))";
-	}
 	if ($panel!=="admin") 
 	{
-		$query.=" AND `vms`.`user_id`='$_SESSION[user_id]'";
+        $query.=" AND `snapshots`.`provider`=(SELECT `Id` from `providers` where LOWER(`title`) like LOWER('".$provider."')) AND `vms`.`user_id`='$_SESSION[user_id]'";
 	}
 	
 	$snapshot_user_list=[];
@@ -75,7 +47,6 @@ function get_snapshots($panel,$provider)
 			$snapshots = (object) array_merge((array) $openstack_snapshots, (array) $vsphere_snapshots); 
 			break;
 	}
-	
 	$snapshot_in_db=server_db($query);	
 	foreach ($snapshot_in_db as $item) {
 		if (strpos($item['status'], 'TERMINATED') !== false) {
@@ -133,7 +104,7 @@ function get_vms($panel,$provider=null) {
 	{
 		$statuses += [$row['title'] => $row['display_title']];
 	}
-	$query_vms = "SELECT `vms`.`title`,`vms`.`id` as id,INET_NTOA(`IP`) as IP,`username`,`exp_date`,`vms`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `vms`,`users`,`vms_statuses`,`providers` WHERE `vms`.`user_id`=`users`.`user_id` and `vms`.`status`=`vms_statuses`.`id` AND `providers`.`id`=`vms`.`provider` AND `vms`.`cleared`=0";
+	$query_vms = "SELECT `vms`.`title`,`vms`.`id` as id,INET_NTOA(`IP`) as IP,`username`,`exp_date`,`vms`.`user_id`,`vms`.`cleared`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `vms`,`users`,`vms_statuses`,`providers` WHERE `vms`.`user_id`=`users`.`user_id` and `vms`.`status`=`vms_statuses`.`id` AND `providers`.`id`=`vms`.`provider` AND `vms`.`cleared`=0";
 	$query_tasks = "SELECT `tasks`.`title`,`tasks`.`id` as id,`username`,`exp_date`,`tasks`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `tasks`,`users`,`vms_statuses`,`providers` WHERE `tasks`.`user_id`=`users`.`user_id` AND `providers`.`id`=`tasks`.`provider` and `tasks`.`status`=`vms_statuses`.`id` and cleared=0";
 	if (!empty($provider))
 	{
@@ -170,7 +141,8 @@ function get_vms($panel,$provider=null) {
 	
 	foreach ($task_in_db as $task) {	
         $taskarray=new stdClass();
-        $taskarray->ID = $task['id'];;
+        $taskarray->ID = $task['id'];
+        $taskarray->type = "tasks";
         $taskarray->date = $task['exp_date'];
         $taskarray->owner = $task['username'];
         $taskarray->extendlimit=DAYS_USER_CAN_EXTEND_VM;
@@ -180,9 +152,9 @@ function get_vms($panel,$provider=null) {
         $taskarray->Name=$task['title'];
         $vm_user_list[]=$taskarray;
     }
-	
+
 	foreach ($vm_in_db as $vm) {
-		if (strpos($vm['vmstatus'], 'TERMINATED') !== false)
+		if ($vm['cleared'] !== 1 )
 		{
 			$vmarray=new stdClass();
 			$vmarray->ID = $vm['id'];
@@ -191,31 +163,33 @@ function get_vms($panel,$provider=null) {
 			$vmarray->Status=$vm['vmstatus'];
 			$vmarray->Name=$vm['title'];
 			$vmarray->provider = $vm['provider'];
+            $vmarray->type = "vms";
 			$vm_user_list[]=$vmarray;
 		}
     }
-	
+
     if (!empty($vms)) foreach ($vms as $vm){
-        $exist=false;
-        foreach ($vm_in_db as $item) {
-			if ($vm->{'ID'} == $item['id']) {
+        $exist=false; 
+        foreach ($vm_user_list as $key => $item) {
+			if ($vm->{'ID'} == $item->{'ID'}) {
 				if ($vm->{'Networks'})
 				{
 					$query_db="UPDATE `vms` set `ip`='".$vm->{'Networks'}."' where `id`='".$vm->{'ID'}."'";
 					server_db($query_db);
 				}
             	$exist=true;
-				$vm->date = $item['exp_date'];
-				$vm->owner = $item['username'];
-				$vm->provider = $item['provider'];
-				$vm->Status=$statuses[$vm->Status];
-				$vm->extendlimit=DAYS_USER_CAN_EXTEND_VM;
-				$vm_user_list[]=$vm;
+                $item=array_merge((array)$item,(array)$vm);
+                $item['Status']=$statuses[$vm->Status];
+				$item['extendlimit']=DAYS_USER_CAN_EXTEND_VM;
+                $item['type'] = "vms";
+                $vm_user_list[$key]=(object)$item;
+                break;
         	}
     	}
         if ($panel == "admin" and !$exist) 
 		{
 			$vm->Status=$statuses[$vm->Status];
+            $item->type = "vms";
 			$vm_user_list[]=$vm;
 		}
     }

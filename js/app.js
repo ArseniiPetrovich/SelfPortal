@@ -121,18 +121,18 @@ $(document).on("click", "button.btn-site-add", function (event) {
 			type: "domains"
 		})
 		.done(function (data, status) {
-			document.getElementById('site_edit_modal').reset();
+			document.getElementById('proxysites_edit_modal').reset();
 			var arr = JSON.parse(data);
-			$("#site_edit_modal_proxy").html("");
+			$("#proxysites_edit_modal_proxy").html("");
 			jQuery.each(arr, function () {
-				$("#site_edit_modal_proxy")
+				$("#proxysites_edit_modal_proxy")
 					.append($("<option></option>")
 						.attr("value", $(this)[0].domain_id)
 						.text($(this)[0].domain));
 
 			});
 			var date_max = new Date();
-			$("#site_edit_modal_date").datetimepicker({
+			$("#proxysites_edit_modal_date").datetimepicker({
 				format: 'YYYY-MM-DD',
 				defaultDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 				minDate: moment().add(1, 'days').format('YYYY-MM-DD'),
@@ -143,14 +143,14 @@ $(document).on("click", "button.btn-site-add", function (event) {
 					date: "fa fa-calendar"
 				}
 			});
-			$("#site_edit_modal_date").val(moment().add(1, 'days').format('YYYY-MM-DD'));
+			$("#proxysites_edit_modal_date").val(moment().add(1, 'days').format('YYYY-MM-DD'));
 		})
 		.fail(function () {
 			window.location.replace("/index.php?out=error");
 		});
 	event.stopImmediatePropagation();
-	$('#site_edit_modal').attr("data-type", "add");
-	$('#siteModal').modal('show');
+	$('#proxysites_edit_modal').attr("data-type", "add");
+	$('#proxysitesModal').modal('show');
 
 });
 
@@ -164,13 +164,13 @@ $(document).on("click", "button.btn-site-edit", function (event) {
 		.done(function (data, status) {
 			var date_max = new Date();
 			var arr = JSON.parse(data);
-			$('#site_edit_modal').attr("data-id", arr[0].site_id);
-			$('#site_edit_modal').attr("data-type", "edit");
-			$("#site_edit_modal_name").val(arr[0].site_name);
-			$("#site_edit_modal_host").val(arr[0].rhost);
-			$("#site_edit_modal_port").val(arr[0].rport);
+			$('#proxysites_edit_modal').attr("data-id", arr[0].id);
+			$('#proxysites_edit_modal').attr("data-type", "edit");
+			$("#proxysites_edit_modal_name").val(arr[0].site_name);
+			$("#proxysites_edit_modal_host").val(arr[0].rhost);
+			$("#proxysites_edit_modal_port").val(arr[0].rport);
 			selectedproxy = arr[0].domain_id;
-			$("#site_edit_modal_date").datetimepicker({
+			$("#proxysites_edit_modal_date").datetimepicker({
 				format: 'YYYY-MM-DD',
 				minDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 				maxDate: date_max.setDate(date_max.getDate() + 180),
@@ -180,7 +180,7 @@ $(document).on("click", "button.btn-site-edit", function (event) {
 					date: "fa fa-calendar"
 				}
 			});
-			$("#site_edit_modal_date").val(arr[0].stop_date);
+			$("#proxysites_edit_modal_date").val(arr[0].exp_date);
 			$.post('check.php', {
 					id: "shared",
 					action: "list",
@@ -188,14 +188,14 @@ $(document).on("click", "button.btn-site-edit", function (event) {
 				},
 				function (data, status) {
 					var arr = JSON.parse(data);
-					$("#site_edit_modal_proxy").html("");
+					$("#proxysites_edit_modal_proxy").html("");
 					jQuery.each(arr, function () {
-						$("#site_edit_modal_proxy")
+						$("#proxysites_edit_modal_proxy")
 							.append($("<option></option>")
 								.attr("value", $(this)[0].domain_id)
 								.text($(this)[0].domain));
 					});
-					$("#site_edit_modal_proxy").val(selectedproxy);
+					$("#proxysites_edit_modal_proxy").val(selectedproxy);
 				});
 		})
 		.fail(function () {
@@ -203,15 +203,15 @@ $(document).on("click", "button.btn-site-edit", function (event) {
 		});
 	event.preventDefault();
 	event.stopImmediatePropagation();
-	$('#siteModal').find(':submit').removeClass("disabled");
-	$('#siteModal').find(':submit').addClass("enabled");
-	$('#siteModal').modal('show');
+	$('#proxysitesModal').find(':submit').removeClass("disabled");
+	$('#proxysitesModal').find(':submit').addClass("enabled");
+	$('#proxysitesModal').modal('show');
 });
 
 $(document).on("submit", "form.vmassign", function (event) {
 	$.post(
 			'check.php', {
-				vmid: $(event.target).attr("vmid"),
+				id: $(event.target).attr("vmid"),
 				vmname: $(event.target).attr("vmname"),
 				user: $("#vms_users_list").val(),
 				action: "assign",
@@ -223,7 +223,7 @@ $(document).on("submit", "form.vmassign", function (event) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
 				js_panel_generate('vms');
-				if ($.trim(data)) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
+				if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
 							'</div>');
@@ -235,9 +235,7 @@ $(document).on("submit", "form.vmassign", function (event) {
 			window.location.replace("/index.php?out=error");
 		});
 	event.preventDefault();
-	event.stopImmediatePropagation();
-	document.getElementById($(event.target).attr('id')).reset();
-	
+	event.stopImmediatePropagation();	
 });
 
 $(document).on("submit", "form.form_mod", function (event) {
@@ -269,7 +267,7 @@ $(document).on("submit", "form.form_mod", function (event) {
 			$(".btn-vm-add").html('Launch Instance');
 			js_panel_generate((($(event.target).attr("provider")!=undefined)?$(event.target).attr("provider"):'')+$(event.target).attr('id').split("_")[0], function () {
 				if (data.indexOf(' ') >= 0) {
-					$("#infos").html('<div class="alert alert-danger alert-dismissable">' +
+					if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-danger alert-dismissable">' +
 						'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 						'<strong>Error!</strong> ' + data +
 						'</div>');
@@ -277,13 +275,13 @@ $(document).on("submit", "form.form_mod", function (event) {
 					if ($(event.target).attr('id').split("_")[0] == "vms") switch ($(event.target).attr("provider"))
 					{
 						case 'openstack':
-							$("#infos").html('<div class="alert alert-info alert-dismissable">' +
+							if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							'<strong>Success!</strong> Please, connect to your instances using ssh keys you specified.' +
 							'</div>');
 							break;
 						case "vsphere":
-							$("#infos").html('<div class="alert alert-info alert-dismissable">' +
+							if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							'<strong>Success!</strong> Your VM is being instantiated. You will receive email about the result of operation when it will be done.' +
 							'</div>');
@@ -320,8 +318,8 @@ $(document).on("click", "[data-action-snapshots]", function (event) {
 	});
 	$.post(
 			'check.php', {
-				id: $(event.target).closest('ul').attr('id'),
-				vmid: $(event.target).closest('ul').attr('vmid'),
+				subid: $(event.target).closest('ul').attr('id'),
+				id: $(event.target).closest('ul').attr('vmid'),
 				subaction: $(event.target).attr('data-action-snapshots'),
 				provider: $(event.target).closest('ul').attr('data-provider-snapshots'),
 				type: "vms",
@@ -331,7 +329,7 @@ $(document).on("click", "[data-action-snapshots]", function (event) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
 				js_panel_generate($('#snapshots_div').attr('panel')+'snapshots');
-				if ($.trim(data)) $("#infos").html('<div class="alert alert-info alert-dismissable">' +
+				if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-info alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
 							'</div>');
@@ -344,7 +342,7 @@ $(document).on("click", "[data-action-snapshots]", function (event) {
 		});
 });
 
-$(document).on("click", "[data-action-vm]", function (event) {
+$(document).on("click", "[data-action]", function (event) {
 	$('#page-wrapper > div > button').addClass('disabled');
 	$('[data-status-id=' + $(event.target).closest('ul').attr('id') + ']').html('<i class="fa fa-spinner fa-spin" style="font-size:24px"></i>');
 	$(event.target).closest('tr').children('td').each(function () {
@@ -353,15 +351,18 @@ $(document).on("click", "[data-action-vm]", function (event) {
 	$.post(
 			'check.php', {
 				id: $(event.target).closest('ul').attr('id'),
-				action: $(event.target).attr('data-action-vm'),
+                subid: $(event.target).closest('ul').attr('subid'),
+				action: $(event.target).attr('data-action'),
+                subaction: $(event.target).attr('data-subaction'),
+                payload: $(event.target).attr('data-payload'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vms"
+				type: $(event.target).closest('ul').attr('data-type')
 			})
 		.done(function (data, status) {
 			clearTimeout(panelTimer);
 			panelTimer = setTimeout(function () {
-				js_panel_generate($('#vm_div').attr('panel')+"vms");
-				$("#infos").html('<div class="alert alert-info alert-dismissable">' +
+				js_panel_generate($(event.target).closest('ul').attr('data-panel'));
+				if ($.trim(data) && data!="true") $("#infos").html('<div class="alert alert-warning alert-dismissable">' +
 							'<a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>' +
 							data +
 							'</div>');
@@ -372,31 +373,6 @@ $(document).on("click", "[data-action-vm]", function (event) {
 		.fail(function () {
 			window.location.replace("/index.php?out=error");
 		});
-});
-
-$(document).on("click", "[data-action-vm-extend]", function (event) {
-	$('#page-wrapper > div > button').addClass('disabled');
-	$('[data-status-id=' + $(event.target).closest('ul').attr('vm_id') + ']').html('<i class="fa fa-spinner fa-spin" style="font-size:24px"></i>');
-	$(event.target).closest("div").children("button").addClass("disabled");
-	$.post(
-			'check.php', {
-				id: $(event.target).closest('ul').attr('vm_id'),
-				action: "extend",
-				days: $(event.target).attr('data-action-vm-extend'),
-				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vms"
-			})
-	.done(function (data, status) {
-			clearTimeout(panelTimer);
-			panelTimer = setTimeout(function () {
-				js_panel_generate($('#vm_div').attr('panel')+"vms");
-				$('#page-wrapper > div > button').removeClass('disabled');
-			}, 3000);
-
-		})
-	.fail(function () {
-			window.location.replace("/index.php?out=error");
-	});
 });
 
 $(document).on("click", "[data-action-vm-assign]", function (event) {
@@ -424,7 +400,7 @@ $(document).on("click", "[data-action-vm-assign]", function (event) {
 					'</ul>' +
 					'</div>' +
 					'<div class="col-sm-6">' +
-					'<button type="clear" class="form-control btn btn-danger">Cancel</button>' +
+					'<button type="reset" class="form-control btn btn-danger" data-dismiss="modal">Cancel</button>' +
 					'</div></div></form></div></div></div>';
 				$('#temp_modals').html(modal);
 				$('#vms_users_modal').modal();				
@@ -452,8 +428,8 @@ $(document).on("click", "[data-action-vm-delete]", function (event) {
 		'</div>' +
 		'<div class="modal-footer">' +
 		'<div class="col-sm-6">' +
-		'<ul id="' + $(event.target).closest('ul').attr('id') + '" data-provider-vm="' + $(event.target).closest('ul').attr('data-provider-vm') + '">' +
-		'<button type="button" class="btn btn-danger" data-action-vm="terminatevm" data-dismiss="modal">Terminate</button>' +
+		'<ul id="' + $(event.target).closest('ul').attr('id') + '" data-panel="' + $(event.target).closest('ul').attr('data-panel') + '" data-type="vms" data-provider-vm="' + $(event.target).closest('ul').attr('data-provider-vm') + '">' +
+		'<button type="button" class="btn btn-danger" data-action="terminatevm" data-dismiss="modal">Terminate</button>' +
 		'</ul>' +
 		'</div>' +
 		'<div class="col-sm-6">' +
@@ -470,14 +446,14 @@ $(document).on("click", "[data-action-vminfo]", function (event) {
 				id: $(event.target).closest('ul').attr('id'),
 				action: $(event.target).attr('data-action-vminfo'),
 				provider: $(event.target).closest('ul').attr('data-provider-vm'),
-				type: "vms"
+				type: $(event.target).closest('ul').attr('data-type')
 			})
 		.done(function (data, status) {
 			var vm = JSON.parse(data);
 			if (typeof vm[0]!==typeof undefined) vm=vm[0];
 			var body = '<div class="container><div class="container row"><strong>Name</strong>: ' + vm.name + '</div>';
-			if (typeof vm.key_name!==typeof undefined) body += '<div class="container row"><strong>SSH Key</strong>: ' + vm.key_name.split("_")[0] + '</div>';
-			if (typeof vm.addresses!==typeof undefined) switch ($(event.target).closest('ul').attr('data-provider-vm'))
+			if (typeof vm.key_name!=typeof undefined) body += '<div class="container row"><strong>SSH Key</strong>: ' + vm.key_name.split("_")[0] + '</div>';
+			if (typeof vm.addresses!=typeof null) switch ($(event.target).closest('ul').attr('data-provider-vm'))
 			{
 				case "openstack" : body += '<div class="container row"><strong>IP (internal, [external])</strong>: ' + vm.addresses.split("=")[1] + '</div>'; break;
 				case "vsphere" : body += '<div class="container row"><strong>IP</strong>: ' + vm.addresses + '</div>'; break;
@@ -576,15 +552,15 @@ $(document).on("click", "button.assignip", function (event) {
 });
 
 function form_change_handler(event) {
-	if (id == "site_edit_modal_name") check_form_name_db(event);
-	if (id == "site_edit_modal_host") check_form_blacklist_db(event);
+	if (id == "proxysites_edit_modal_name") check_form_name_db(event);
+	if (id == "proxysites_edit_modal_host") check_form_blacklist_db(event);
 	var id = event.attr('id');
 	var attr = event.attr('data-validator-name');
 	if (typeof attr !== typeof undefined && attr !== false) {		
 		var patt = new RegExp(attr);
 		if (!(patt.test(event.val()))) {
-			$("#site_edit_modal_name_help").html("Wrong input type! Make sure you input correct site name.");
-			$("#site_edit_modal_host_help").html("Wrong host! Make sure you have a dot and at least one letter before and two after it.");
+			$("#proxysites_edit_modal_name_help").html("Wrong input type! Make sure you input correct site name.");
+			$("#proxysites_edit_modal_host_help").html("Wrong host! Make sure you have a dot and at least one letter before and two after it.");
 			event.attr("data-comment", "error");
 			event.parent().closest('div').addClass("has-error");
 			//event.closest("form").find(':submit').addClass("disabled");
@@ -720,6 +696,7 @@ function js_panel_generate(tumbler, returndata = null) {
 			js_panel_generate_users(returndata,"internal");
 			break;
 		case "site":
+        case "proxysites":
 			js_panel_generate_site(returndata);
 			break;
 		case "keys":
@@ -807,13 +784,15 @@ function js_panel_generate_snapshots(returndata, provider) {
 			$('#snapshots_div').html("");
 			if (arr.length > 0) {
 				jQuery.each(arr, function () {
+                    if (typeof $(this)[0]["createddate"] !== typeof undefined) var createddate = new Date($(this)[0]["createddate"]);
+                    else var createddate = "<span class=\"label label-danger\">TERMINATED</span>";
 					body +=
 						'<tr><td>' +
-						$(this)[0]["name"] +
+						($(this)[0]["name"] ? $(this)[0]["name"] : $(this)[0]["vmname"])  +
 						'</td><td>' +
 						$(this)[0]["status"] +
 						'</td><td>' +
-						Date($(this)[0]["createddate"]).toString() +
+						createddate.toString() +
 						'</td><td><div class="dropdown">'+$(this)[0]["exp_date"];
 					var extendlimit = new Date();
 					var dateVM = new Date($(this)[0]["createddate"]);
@@ -822,9 +801,9 @@ function js_panel_generate_snapshots(returndata, provider) {
 						if (dateVM < extendlimit) {
 							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown">+' +
 								'</button>' +
-								'<ul class="dropdown-menu snapshots-actions" data-provider-snapshots="' + $(this)[0]["provider"].toLowerCase() + '" snapshots_id="' + $(this)[0]["id"] + '">' +
-								'<li><a href="#" data-action-snapshots-extend="1">+1 day</a></li>' +
-								'<li><a href="#" data-action-snapshots-extend="3" >+3 days</a></li>' +
+								'<ul class="dropdown-menu snapshots-actions" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'snapshots" data-type="vms" subid="' + $(this)[0]["id"] + '" id="' + $(this)[0]["vmid"] + '">' +
+								'<li><a href="#" data-action="snapshots" data-subaction="extend" data-payload="1">+1 day</a></li>' +
+								'<li><a href="#" data-action="snapshots" data-subaction="extend" data-payload="3">+3 days</a></li>' +
 								'</ul> ';
 						}
 					}
@@ -897,7 +876,7 @@ function js_panel_generate_adgroups(returndata) {
 					'</td><td>' +
 					$(this)[0].rights +				
 					'</td>' +
-					'<td>'+/*'<button type="button" id="adgroups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" id="adgroups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					'<td>'+/*'<button type="button" id="adgroups ' + $(this)[0].id + '" class="btn btn-warning btn-edit">Edit</button>'+*/'<button type="button" data-id="'+$(this)[0].id+'" data-type="adgroups" data-title="adgroups" data-panel="adgroups" id="adgroups ' + $(this)[0].id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
 					'</tr>';
 			});
 			body += '</tbody></table></p>'
@@ -1038,7 +1017,7 @@ function js_panel_generate_vms(returndata, provider) {
 						'<tr><td><div id="vmname-'+$(this)[0]["ID"]+'">' +
 						$(this)[0]["Name"].split("_")[0] +
 						'</div></td><td>' +
-						$(this)[0]["Image Name"] +
+						(typeof $(this)[0]["Image Name"] != typeof undefined ? $(this)[0]["Image Name"] : '<span class="label label-default">UNKNOWN</span>') +
 						'</td><td>';
 					
 					if ($(this)[0]["Networks"] != null) {
@@ -1055,13 +1034,13 @@ function js_panel_generate_vms(returndata, provider) {
 					extendlimit.setDate(extendlimit.getDate() + parseInt($(this)[0]['extendlimit']));
 					if (typeof $(this)[0]["date"] !== typeof undefined) {
 						body += $(this)[0]["date"];
-						if (dateVM < extendlimit) {
-							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown">+' +
+						if (dateVM < extendlimit && $(this)[0]["Status"].includes("BUILDING") && $(this)[0]["Status"].includes("FAILURE")) {
+							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'vms">+' +
 								'</button>' +
-								'<ul class="dropdown-menu vm-actions" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" vm_id="' + $(this)[0]["ID"] + '">' +
-								'<li><a href="#" data-action-vm-extend="1">+1 day</a></li>' +
-								'<li><a href="#" data-action-vm-extend="5" >+5 days</a></li>' +
-								'<li><a href="#" data-action-vm-extend="10">+10 days</a></li>' +
+								'<ul class="dropdown-menu vm-actions" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'vms" data-type="vms" id="' + $(this)[0]["ID"] + '">' +
+								'<li><a href="#" data-action="extend" data-payload="1">+1 day</a></li>' +
+								'<li><a href="#" data-action="extend" data-payload="5">+5 days</a></li>' +
+								'<li><a href="#" data-action="extend" data-payload="10">+10 days</a></li>' +
 								'</ul>';
 						}
 					}
@@ -1069,20 +1048,20 @@ function js_panel_generate_vms(returndata, provider) {
 						'<div class="dropdown">' +
 						'<button class="btn btn-primary btn-sm dropdown-toggle '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" type="button" data-toggle="dropdown">Actions' +
 						'<span class="caret"></span></button>' +
-						'<ul class="dropdown-menu vm-actions '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["ID"] + '">';
+						'<ul class="dropdown-menu vm-actions '+($(this)[0]["Status"]=="Building"?"disabled":"")+'" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'vms" data-type="' + $(this)[0]["type"] + '" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" id="' + $(this)[0]["ID"] + '">';
 					if ($(this)[0]["Status"].includes("TERMINATED") || $(this)[0]["Status"].includes("FAILURE")) {
 						body += '<li><a href="#" data-action-vminfo="dbinfo">Info</a></li>' +
-						'<li><a href="#" data-action-vm="clearvm">Remove</a></li>';
+						'<li><a href="#" data-action="clearvm">Remove</a></li>';
 					}
-					else if ($(this)[0]["Status"].includes("MAINTENANCE") || $(this)[0]["Status"].includes("BUILDING")) { body += '<li><a href="#" data-action-vminfo="info">Info</a></li>';}
+					else if ($(this)[0]["Status"].includes("MAINTENANCE") || $(this)[0]["Status"].includes("BUILDING") || $(this)[0]["Status"].includes("FAILURE")) { body += '<li><a href="#" data-action-vminfo="dbinfo">Info</a></li>';}
 					else {
 						body +=
 						'<li><a href="#" data-action-vminfo="info">Info</a></li>' +
 						'<li><a href="#" data-action-vnc="vnc">Open console</a></li>' +
-						'<li><a href="#" data-action-vm="startvm" >Start</a></li>' +
-						'<li><a href="#" data-action-vm="stopvm">Stop</a></li>' +
-						'<li><a href="#" data-action-vm="rebootvm">Reboot</a></li>' +
-						'<li><a href="#" data-action-vm="backupvm">Backup</a></li>' +
+						'<li><a href="#" data-action="startvm" >Start</a></li>' +
+						'<li><a href="#" data-action="stopvm">Stop</a></li>' +
+						'<li><a href="#" data-action="rebootvm">Reboot</a></li>' +
+						'<li><a href="#" data-action="backupvm">Backup</a></li>' +
 						'<li><a href="#" data-action-vm-delete="terminatevm">Terminate</a></li>';	
 					}
 					body +=
@@ -1091,7 +1070,7 @@ function js_panel_generate_vms(returndata, provider) {
 					if ($('#vm_div').attr('panel') == "admin")
 					{
 						body += '<td>' + (typeof($(this)[0]["owner"])===typeof(undefined)?('<button data-action-vm-assign="assign" data-provider-vm="' + $(this)[0]["provider"].toLowerCase() + '" vmid="' + $(this)[0]["ID"] + '" class="btn-sm btn btn-primary">Assign</button>'):$(this)[0]["owner"])+ '</td>';
-						body += '<td>' + $(this)[0]["provider"] + '</td>';
+						body += '<td>' + $(this)[0]["provider"].toLowerCase() + '</td>';
 					}
 					body += '</tr>';
 				});
@@ -1108,6 +1087,7 @@ function js_panel_generate_vms(returndata, provider) {
 }
 
 function js_panel_generate_users(returndata,provider) {
+    $('#'+provider+'_users').html('');
 	if (provider.toUpperCase()==="INTERNAL" && document.getElementById("users_internal_add")==null)
 	{
 		var body=
@@ -1147,7 +1127,7 @@ function js_panel_generate_users(returndata,provider) {
 				'<th>Email</th>' +
 				'<th>Department</th>' +
 				(typeof(arr[0].rights)!==typeof(undefined) ? '<th>Rights</th>' : '') +
-				'<th>Actions</th>' +
+				/*'<th>Actions</th>' +*/
 				'</tr></thead><tbody>';
 			jQuery.each(arr, function () {
 				body +=
@@ -1158,17 +1138,17 @@ function js_panel_generate_users(returndata,provider) {
 					'</td><td>' +
 					$(this)[0].email +
 					'</td><td>' +
-					$(this)[0].department +
+					$(this)[0].title +
 					'</td>' +
 					(typeof($(this)[0].rights)!==typeof(undefined) ? '<td>'+$(this)[0].rights+'</td>' : '') +
-					'<td>'+/*(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+*/'<button type="button" data-type="users" data-id="' + $(this)[0].user_id + '" data-panel="'+provider+'users" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +
+					/*'<td>'+(provider.toUpperCase()==='INTERNAL'?'<button type="button" id="user ' + $(this)[0].user_id + '" class="btn btn-warning btn-edit">Edit</button>':'')+'<button type="button" data-type="users" data-id="' + $(this)[0].user_id + '" data-panel="'+provider+'users" id="user ' + $(this)[0].user_id + '" class="btn btn-danger btn-delete">Delete</button></td>' +*/
 					'</tr>';
 			});
 			body += '</tbody></table></p>';
 			$('#'+provider+'_users').append(body);
 			$('#users_list_'+provider).DataTable();
 			
-			var retbody = $.post('check.php', {
+			/*var retbody = $.post('check.php', {
 				action: "list",
 				type: "rights",
 			})
@@ -1204,7 +1184,7 @@ function js_panel_generate_users(returndata,provider) {
 			})
 			.fail(function () {
 				window.location.replace("/index.php?out=error");
-			});	
+			});	*/
 			
 		})
 		.fail(function () {
@@ -1304,7 +1284,7 @@ function js_panel_generate_domains(returndata) {
 						$(this)[0].shared +
 						'</td><td>' +
 						'<button type="button" data-toggle="modal" data-target="#DomainsModal" id="domains ' + $(this)[0].domain_id + '" class="btn btn-primary btn-domains-edit">Edit</button>' +
-						'<button type="button" id="domains ' + $(this)[0].domain_id + '" class="btn btn-danger btn-delete">Delete</button>' +
+						'<button type="button" data-type="domains" data-panel="domains" data-id="' + $(this)[0].domain_id + '" class="btn btn-danger btn-delete">Delete</button>' +
 						'</td></tr>';
 				});
 				body += '</tbody></table></p>';
@@ -1327,9 +1307,9 @@ function js_panel_generate_blacklist(returndata) {
 			var body = '<p><div class="hide alert alert-danger" id="blacklist_add_form_return">' +
 				'<strong>Alert!</strong> IP were not added. This name already exists in the global list.' +
 				'</div></p>' +
-				'<form class="form-inline form_mod form_error" id="blacklist_add_form" data-type="add" style="padding:10px 0px 10px">' +
+				'<form class="form-inline form_mod form_error" id="blacklist_add" data-type="add" style="padding:10px 0px 10px">' +
 				'<div class="form-group">' +
-				'<input type="text" class="form-control" id="blacklist_add_input" placeholder="IP address[/mask]" minlength="7" required data-validator-name="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:|\/[1-2]?[0-9]|\/3[0-2])$">' +
+				'<input type="text" class="form-control" id="blacklist_add_input" name="name" placeholder="IP address[/mask]" minlength="7" required data-validator-name="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:|\/[1-2]?[0-9]|\/3[0-2])$">' +
 				'</div>' +
 				'<button type="submit" class="btn btn-primary">Add</button>' +
 				'<span style="color:#bf9dff; display:none" id="blacklist_add_input_help" class="help-inline"> Wrong input type! Make sure you write ip in right format (4 numbers between 0 and 255 divided by dot) and mask (if exists) is between 0 and 32</span>' +
@@ -1345,7 +1325,7 @@ function js_panel_generate_blacklist(returndata) {
 					'<tr><td>' +
 					$(this)[0]["INET_NTOA(`IP`)"] + "/" + $(this)[0]["Mask"] +
 					'</td><td>' +
-					'<button type="button" id="blacklist ' + $(this)[0].ip_id + '" class="btn btn-danger btn-delete">Delete</button>' +
+					'<button type="button" data-panel="blacklist" data-type="blacklist" data-id="' + $(this)[0].ip_id + '" class="btn btn-danger btn-delete">Delete</button>' +
 					'</td></tr>';
 			});
 			body += '</tbody></table></p>';
@@ -1365,7 +1345,7 @@ function js_panel_generate_site(returndata) {
 	$.post('check.php', {
 			id: user_id,
 			action: "list",
-			type: "site"
+			type: "proxysites"
 		})
 		.done(function (data, status) {
 			if (!$.trim(data) || data==="[]") {
@@ -1375,7 +1355,7 @@ function js_panel_generate_site(returndata) {
 				return;
 			}
 			var arr = JSON.parse(data);
-			var tablebody = '<p><div class="hide alert alert-danger" id="site_edit_modal_return">' +
+			var tablebody = '<p><div class="hide alert alert-danger" id="proxysites_edit_modal_return">' +
 				'<strong>Alert!</strong> Site were not added. This name already exists in the global list.' +
 				'</div>' +
 				'<table id="sites" class="display" cellspacing="0" width="100%">' +
@@ -1421,22 +1401,21 @@ function js_panel_generate_site(returndata) {
 							'<td>' + selected.rport + '</td>';
 						if (!user_id) tablebody += '<td>' + selected.username + '</td>';
 						tablebody += '<td>';
-						if (selected.status == "Enabled" && flag) tablebody += '<span class="label label-success">Enabled</span>';
-						else tablebody += '<span class="label label-warning">Disabled</span>';
+						if (selected.status == "HTTPS" && flag) tablebody += '<span class="label label-success">HTTPS</span>';
+						else if (selected.status == "HTTP") tablebody += '<span class="label label-warning">HTTP</span>';
+                        else tablebody += '<span class="label label-danger">Disabled</span>';
 						tablebody += '</td>' +
-							'<td>' + selected.stop_date + '</td>' +
+							'<td>' + selected.exp_date + '</td>' +
 							'<td>' +
-							'<button type="button" data-toggle="modal" data-target="#DomainsModal" id="site ' + selected.site_id + '" class="btn btn-primary btn-site-edit">Edit</button>';
+							'<button type="button" data-toggle="modal" data-target="#DomainsModal" id="proxysites ' + selected.id + '" class="btn btn-primary btn-site-edit">Edit</button>';
 						if (flag) {
-							tablebody += '<button type="button" id="site ' + selected.site_id + '" class="btn btn-warning btn-switch">';
-							if (selected.status == "Enabled") tablebody += 'Disable';
-							else tablebody += 'Enable';
+							tablebody += '<button type="button" id="proxysites ' + selected.id + '" class="btn btn-warning btn-switch">';
+							if (selected.status == "HTTPS") tablebody += 'to HTTP';
+							else if (selected.status == "HTTP") tablebody += 'Disable';
+                            else tablebody +="Enable"
 							tablebody += '</button>';
 						}
-
-
-
-						tablebody += '<button type="button" id="site ' + selected.site_id + '" class="btn btn-danger btn-delete">Delete</button>' +
+						tablebody += '<button type="button" data-panel="site" data-type="proxysites" data-id="' + selected.id + '" class="btn btn-danger btn-delete">Delete</button>' +
 							'</td>' +
 							'</tr>';
 						asyncProcessed++;
@@ -1463,14 +1442,14 @@ function site_create_async_callback(tablebody) {
 function check_form_name_db(event) {
 	$.post('check.php', {
 			name: $(event).val(),
-			proxy: $("#site_edit_modal_proxy").val(),
+			proxy: $("#proxysites_edit_modal_proxy").val(),
 			action: "check",
 			type: "site"
 		})
 		.done(
 			function (data, status) {
 				if (data.trim() != "[]") {
-					$("#site_edit_modal_name_help").html("Site name already exist");
+					$("#proxysites_edit_modal_name_help").html("Site name already exist");
 					event.attr("data-comment", "error");
 					event.parent().closest('div').addClass("has-error");
 					event.closest("form").find(':submit').addClass("disabled");
@@ -1496,7 +1475,7 @@ function createNetmaskAddr(bitCount) {
 //Check host in blacklist
 function check_form_blacklist_db(event) {
 	$.post('check.php', {
-			proxy: $("#site_edit_modal_host").val(),
+			proxy: $("#proxysites_edit_modal_host").val(),
 			action: "check",
 			type: "blacklist"
 		})
@@ -1506,7 +1485,7 @@ function check_form_blacklist_db(event) {
 				var result = JSON.parse(data);
 				if (result[0].result == "true") flag = true;
 				if (flag) {
-					$("#site_edit_modal_host_help").html("We can't use this IP (BlackList)");
+					$("#proxysites_edit_modal_host_help").html("We can't use this IP (BlackList)");
 					event.attr("data-comment", "error");
 					event.parent().closest('div').addClass("has-error");
 					event.closest("form").find(':submit').addClass("disabled");
@@ -1521,13 +1500,13 @@ function check_form_blacklist_db(event) {
 function count_sites() {
 	$.post('check.php', {
 			action: "count",
-			type: "site"
+			type: "proxysites"
 		})
 		.done(
 			function (data, status) {
 				count = JSON.parse(data);
-				$('#site_online').html("Active " + count["0"]["COUNT(site_id)"]);
-				$('#site_online_side').html(count["0"]["COUNT(site_id)"]);
+				$('#site_online').html("Active " + count["0"]["COUNT(id)"]);
+				$('#site_online_side').html(count["0"]["COUNT(id)"]);
 			})
 		.fail(function () {
 			$('#site_online').html("Active UNKNOWN");

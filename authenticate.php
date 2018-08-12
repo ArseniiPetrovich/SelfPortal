@@ -96,7 +96,7 @@ function authenticate($user, $password) {
     } else {
 		$query="SELECT `table_name` from `user_types` where LOWER(`title`) like LOWER('internal')";
         $table_internal=mysqli_fetch_array(mysqli_query($conn,$query)) or die ("Could not get any results from mysql");
-		$query="SELECT * from `".$table_internal['table_name']."` where `rights`>0";
+		$query="SELECT * from `".$table_internal['table_name']."`,`users` where `".$table_internal['table_name']."`.`global_uid`=`users`.`user_id` and `rights`>0";
         $int_users=mysqli_query($conn,$query) or die ("Could not get any results from mysql");
 		$_SESSION['access']=0;
 		foreach ($int_users as $int_user)

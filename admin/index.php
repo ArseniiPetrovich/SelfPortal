@@ -116,7 +116,7 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 
 						<div class="modal-footer form-row">
 							<div class="col-sm-12 container" style="padding: 0px 0px 10px 0px">
-								<button type="submit" class="form-control btn btn-primary disabled">Ok</button>
+								<button type="submit" class="form-control btn btn-primary">Ok</button>
 							</div>
 							<div class="col-sm-12 container" style="padding: 0px">
 								<button class="form-control btn btn-danger" type="reset" data-dismiss="modal">Close</button>
@@ -131,10 +131,10 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 		</div>
 		<!-- /.modal -->
 
-		<div class="modal fade" id="siteModal" tabindex="-1" role="dialog" aria-labelledby="SiteModal" aria-hidden="true">
+		<div class="modal fade" id="proxysitesModal" tabindex="-1" role="dialog" aria-labelledby="proxysitesModal" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">
-					<form role="form" class="form_mod form_error" data-type="add" id="site_edit_modal">
+					<form role="form" class="form_mod form_error" data-type="add" id="proxysites_edit_modal">
 						<div class="modal-header">
 							<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
 							<h3 class="modal-title" id="myModalLabel">Add proxy site</h3>
@@ -145,14 +145,14 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 
 							<h4>Name:</h4>
 							<div class="form-group row">
-								<div class="col-sm-12"><input type="text" required class="form-control form-name-check" name="name" id="site_edit_modal_name" placeholder="Domain name can contain only letters and numbers" data-validator-name="^([A-Za-z0-9])+[A-Za-z0-9]$" placeholder="Domain name"></div>
+								<div class="col-sm-12"><input type="text" required class="form-control form-name-check" name="name" id="proxysites_edit_modal_name" placeholder="Domain name can contain only letters and numbers" data-validator-name="^([A-Za-z0-9])+[A-Za-z0-9]$" placeholder="Domain name"></div>
 							</div>
-							<div class="container"><span style="color:red; display:none" id="site_edit_modal_name_help" class="help-inline">Wrong input type! Make sure you input correst site name.</span></div>
+							<div class="container"><span style="color:red; display:none" id="proxysites_edit_modal_name_help" class="help-inline">Wrong input type! Make sure you input correst site name.</span></div>
 
 							<h4>Domain:</h4>
 							<div class="form-group row">
 								<div class="col-sm-12">
-									<select class="form-control" required name="proxy" id="site_edit_modal_proxy">
+									<select class="form-control" required name="proxy" id="proxysites_edit_modal_proxy">
 
                         </select>
 								</div>
@@ -160,24 +160,24 @@ if(!isset($_SESSION['user'])) die(header("Location: /index.php"));
 
 							<h4>Internal host:</h4>
 							<div class="form-group row">
-								<div class="col-sm-12"><input type="text" required class="form-control" name="host" id="site_edit_modal_host" minlength="7" data-validator-name="(^(?:[-A-Za-z0-9]+\.)+[A-Za-z]{2,6}$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)" placeholder="192.168.0.205 or DNS name"></div>
+								<div class="col-sm-12"><input type="text" required class="form-control" name="host" id="proxysites_edit_modal_host" minlength="7" data-validator-name="(^(?:[-A-Za-z0-9]+\.)+[A-Za-z]{2,6}$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)" placeholder="192.168.0.205 or DNS name"></div>
 							</div>
-							<div class="container"><span style="color:red; display:none" id="site_edit_modal_host_help" class="help-inline">Wrong host! Make sure you have a dot and at least one letter before and two after it.</span></div>
+							<div class="container"><span style="color:red; display:none" id="proxysites_edit_modal_host_help" class="help-inline">Wrong host! Make sure you have a dot and at least one letter before and two after it.</span></div>
 
 							<h4>Internal port:</h4>
 							<div class="form-group row">
-								<div class="col-sm-12"><input type="number" min="0" required class="form-control" max="65535" name="port" step="1" id="site_edit_modal_port" data-validator-name="(^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$)" placeholder="80"></div>
+								<div class="col-sm-12"><input type="number" min="0" required class="form-control" max="65535" name="port" step="1" id="proxysites_edit_modal_port" data-validator-name="(^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$)" placeholder="80"></div>
 							</div>
-							<div class="container"><span style="color:red; display:none" id="site_edit_modal_port_help" class="help-inline">Wrong input type! Make sure you write a number between 0 and 65535</span></div>
+							<div class="container"><span style="color:red; display:none" id="proxysites_edit_modal_port_help" class="help-inline">Wrong input type! Make sure you write a number between 0 and 65535</span></div>
 
 							<h4>Expiration date:</h4>
 							<div class="form-group input-group col-sm-12" data-provide="datepicker">
-								<input type="text" required class="datepicker form-control" name="date" id="site_edit_modal_date" data-validator-name="^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$">
+								<input type="text" required class="datepicker form-control" name="date" id="proxysites_edit_modal_date" data-validator-name="^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$">
 								<span class="input-group-addon">
                         <span class="glyphicon glyphicon-calendar"></span>
 								</span>
 							</div>
-							<div class="row"><span style="color:red; display:none" id="site_edit_modal_date_help" class="help-inline">Wrong date format</span></div>
+							<div class="row"><span style="color:red; display:none" id="proxysites_edit_modal_date_help" class="help-inline">Wrong date format</span></div>
 						</div>
 						<!-- /.modal-body -->
 
@@ -461,7 +461,7 @@ if (empty($_GET['dashboard'])) echo "
  </div></div></div>";
 else switch ($_GET['dashboard']){
     case "Sites":
-        echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" class=\"btn btn-primary btn-site-add\" data-toggle=\"modal\" data-target=\"#SiteModal\">ADD PROXY SITE</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('site',".$_SESSION['user_id'].")\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr>";
+        echo "<div class=\"row\"><div class=\"col-sm-11\"><button type=\"button\" class=\"btn btn-primary btn-site-add\" data-toggle=\"modal\" data-target=\"#proxysitesModal\">ADD PROXY SITE</button></div><div class=\"col-sm-1\"><div onclick=\"js_panel_generate('site',".$_SESSION['user_id'].")\"><a href=\"#\"><i class=\"fa fa-refresh fa-2x\"></i></a></div></div></div><hr>";
         echo "<div id=\"sites_table_div\"><script> js_panel_generate('site',".$_SESSION['user_id']."); </script></div>";
         break;
     case "Profile":
@@ -512,10 +512,9 @@ else switch ($_GET['dashboard']){
                                     </li>
 									<li class=\"\"><a href=\"#ldap_users\" data-toggle=\"tab\" aria-expanded=\"false\">LDAP Users</a>
                                     </li>
-									<li class=\"\"><a href=\"#internal_users\" data-toggle=\"tab\" aria-expanded=\"false\">Internal Users</a>
-                                    </li>
 									<li class=\"\"><a href=\"#adgroups\" data-toggle=\"tab\" aria-expanded=\"false\">AD Groups</a>
                                     </li>";		
+        /*<li class=\"\"><a href=\"#internal_users\" data-toggle=\"tab\" aria-expanded=\"false\">Internal Users</a></li>*/
                                 echo "</ul>
 
                                 <!-- Tab panes -->
@@ -540,9 +539,9 @@ else switch ($_GET['dashboard']){
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"ldap_users\">";
                                         echo "<script> js_panel_generate(\"ldapusers\"); </script>";
-                                        echo "</div>
+                                        /*echo "</div>
 									<div class=\"tab-pane fade\" id=\"internal_users\">";
-                                        echo "<script> js_panel_generate(\"internalusers\"); </script>";
+                                        echo "<script> js_panel_generate(\"internalusers\"); </script>";*/
                                         echo "</div>
 									<div class=\"tab-pane fade\" id=\"adgroups\">";
                                         echo "<script> js_panel_generate(\"adgroups\"); </script>";
@@ -617,7 +616,7 @@ else switch ($_GET['dashboard']){
 		<div class="panel-footer">
 			<div align="center" class="col-md-4"></div>
 			<div align="center" class="col-md-4"><a href="https://github.com/Altoros/SelfPortal/issues">Report bug</a></div>
-			<div align="right" class="col-md-4"><i>Version: 0.4.0.0 (Internal users)</i></div>
+			<div align="right" class="col-md-4"><i>Version: 0.4.0.0 (Snapshots)</i></div>
 		</div>
 
 		<!-- Metis Menu Plugin JavaScript -->

@@ -83,18 +83,25 @@ sub get_vm_debug{
 	my %filter_hash = create_hash(Opts::get_option('ipaddress'),
                               Opts::get_option('powerstatus'),
                               Opts::get_option('guestos'));
-	my $vm_views = VMUtils::get_vms ('VirtualMachine',
-                                      Opts::get_option ('vmname'),
-                                      Opts::get_option ('datacenter'),
-                                      Opts::get_option ('folder'),
-                                      Opts::get_option ('pool'),
-                                      Opts::get_option ('host'),
-                                     %filter_hash);
-   my $vm_view = shift @$vm_views;
-   if ($vm_view) {
-		print $vm_view->summary->config->uuid;
-	}
-
+	my $vm_views = VMUtils::get_vms (
+        'VirtualMachine',
+        Opts::get_option ('vmalias'),
+        Opts::get_option ('datacenter'),
+        Opts::get_option ('folder'),
+        Opts::get_option ('pool'),
+        Opts::get_option ('host'),
+        %filter_hash
+    );
+    my $vm_view = shift @$vm_views;
+    if ($vm_view) {
+        if ($vm_view->summary->config->uuid)
+        {
+            print $vm_view->summary->config->uuid;
+        }
+        else {
+            print 0;
+        }
+    }
 }
 
 sub get_vm_info {
