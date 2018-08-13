@@ -108,7 +108,7 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 	if (!empty($result) && !preg_match('/\s/',$result))
 	{
 		$query="INSERT INTO `vms` SELECT '$result','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0','VM was successfully created.' FROM `tasks` where `tasks`.`id`='$task'";
-		register_shutdown_function('onDieSqlVM',$task);
+		register_shutdown_function('onDieSqlVM',$task,$user,$user_email);
 		ob_start();
 		db_query($query);
 		ob_end_clean();		
@@ -126,15 +126,12 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 	}
 }
 
-function onDieSqlVM($task){
+function onDieSqlVM($task,$user,$user_email){
 	$message = ob_get_contents();
 	ob_end_clean();
 	if (strpos($message, 'Duplicate') !== false) {
 		write_log(date('Y-m-d H:i:s')." [CRON][ERROR] Duplicate instance was created. Executing DB clearing...");
-		$matches=array();
-		preg_match("/'([0-9])([0-9])'/",$message,$matches);
-		$user=mysqli_fetch_assoc(db_query("SELECT username,email from users where `user_id`=".str_replace("'","",$matches[0])));
-		send_notification($user['email'],"Hello, $user[username]! You have tried to create VM with the same name you already have. Unfortunately we cannot afford you to do this. And we are sorry. Please, recreate it with the other name if needed. Thanks!");
+		send_notification($user_email,"Hello, $user! You have tried to create VM with the same name you already have. Unfortunately we cannot afford you to do this. And we are sorry. Please, recreate it with the other name if needed. Thanks!");
 		db_query("UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created. You have tried to create VM with the same name you already have. We can not afford you to do this, sorry :(' WHERE `id`=".$task);
 	}
 }
