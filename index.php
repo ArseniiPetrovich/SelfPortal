@@ -30,7 +30,6 @@
 
       // check to see if login form has been submitted
       if(isset($_POST['username'])){
-		  echo authenticate($_POST['username'],$_POST['password']);
           // run information through authenticator
           if(authenticate($_POST['username'],$_POST['password']))
           {
@@ -65,7 +64,8 @@
           // output error to user
 if(isset($error)) echo "Login failed: Incorrect user name or password<br /-->";
           // output logout success
-          if(isset($_GET['out'])) echo "Logout successful<br /-->";
+          if(isset ($_GET['out']) && $_GET['out']=="logout") echo "Logout successful<br /-->";
+		  elseif (isset ($_GET['out']) && $_GET['out']=="error") echo "Error occured. Please, contact your system administrators.";
 ?>
 						</font>
 					</form>

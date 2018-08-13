@@ -1,7 +1,7 @@
 <?php
 #Check right
-function access_level($resourse,$action,$resource_id) {
-    if (access_level_internal($resourse,$action,$resource_id))
+function access_level($resourse,$action,$provider=null,$resource_id=null) {
+    if (access_level_internal($resourse,$action,$provider,$resource_id))
     {
         $log=date('Y-m-d H:i:s')." [ACCESS][INFO] User ".$_SESSION['user']." (id ".$_SESSION['user_id'].") with access level ".$_SESSION['access']." tried to ".$action." ".$resourse;
         if (isset($resource_id)) $log.=" (id ".$resource_id.")";
@@ -17,105 +17,20 @@ function access_level($resourse,$action,$resource_id) {
     }
 }
 
-function access_level_internal($resourse,$action,$resource_id) {
+function access_level_internal($resource,$action,$provider,$resource_id) {
     $access=false;
-    if ( $_SESSION['access']==2)  return $access=true;
-    switch ($resourse) {
-        case "vms":
-        case "vm":
-            switch ($action) {
-                case "createserver":
-                case "count":
-                case "images":
-                case "imagedetails":
-                case "flavor":
-                case "list":
-                case "flavordetails":
-                    return $access=true;
-                case "terminatevm":
-                case "assignip":
-                case "stopvm":
-				case "clearvm":
-                case "info":
-                case "startvm":
-                case "extend":
-                case "rebootvm":
-                case "vnc":
-                    $query = "SELECT `vm_id` from `vms` WHERE `user_id`='$_SESSION[user_id]' and `vm_id`='$resource_id'";
-                    break;
-              }
-            break;
-        case "site":
-            switch ($action) {
-                case "edit":
-                case "switch":
-                case "delete":
-                case "get":
-                    $query = "SELECT `site_name` FROM `proxysites` WHERE  `site_id`= '$resource_id' AND `user_id`='$_SESSION[user_id]'";
-                    break;
-                case "list":
-                    if ($resource_id == $_SESSION['user_id']) return $access=true;
-                    break;
-                case "add":
-                case "count":
-                case "check":
-                    return $access=true;
-                    break;
-            }
-            break;
-        case "domains":
-            switch ($action) {
-                case "edit":
-                    return $access = false;
-                case "delete":
-                    return $access = false;
-                case "add":
-                    return $access = false;
-                case "list":
-                case "get":
-                case "check":
-                     return $access=true;
-                     break;
-            }
-            break;
-        case "blacklist":
-            switch ($action) {
-                case "add":
-                    return $access = false;
-                case "delete":
-                    return $access = false;
-                case "list":
-                case "check":
-                    return $access = true;
-            }
-            break;
-        case "users":
-            switch ($action) {
-                case "list":
-                    return $access=false;
-            }
-            break;
-        case "keys":
-            switch ($action) {
-                case "delete":
-                        $query = "SELECT `key_id` from `public_keys` WHERE `user_id`='$_SESSION[user_id]' and `key_id`='$resource_id'";
-                        break;
-                case "list":
-                        return $access=true;
-                case "add":
-                        return $access=true;
-            }
-            break;
-        case "notifications":
-            switch ($action) {
-                case "list":
-                    return $access=true;
-            }
-            break;
-    }
-    return is_owner($query);
+    if (mysqli_num_rows(sql_query("SELECT * FROM `permissions` where `actions`=(SELECT `id` from `actions` where `resource`='all' AND `action`='all') and `rights`=".$_SESSION['access']))) { return $access=true;}
+    $rights=mysqli_fetch_array(sql_query("SELECT MAX(`bypass_resource_check`) FROM `permissions` where `actions` IN (SELECT `id` FROM `actions` where (`resource`='$resource' or `resource`='all')  AND (`action`='$action' OR `action`='all'))  AND (`provider`='$provider' OR `provider` IS NULL) AND `rights`=".$_SESSION['access']));
+	if ($rights[0]==0 && !is_null($rights[0])) { 
+		return mysqli_num_rows(sql_query("SELECT * from `$resource` WHERE `user_id`='$_SESSION[user_id]' and `id`='$resource_id'")) > 0
+			? true
+			: false ;
+	}
+	else if ($rights[0]==1) return true;
+	else return false;
 }
-function is_owner($query) {
+
+function sql_query($query) {
     $owner=false;
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE);
     // Check connection
@@ -123,17 +38,16 @@ function is_owner($query) {
         die("Connection failed: " . $conn->connect_error);
     } else {
             $result=mysqli_query($conn,$query) or die("MySQL error: " . mysqli_error($conn) . "<hr>\nQuery: $query");
-            if (mysqli_num_rows($result)!=0) { $owner=true; }
-
+            //if (mysqli_num_rows($result)>0) { $owner=true; }
         }
     $conn->close();
-    return $owner;
+    return $result;
 }
 
 function write_log($entry){
-    $file = fopen(LOG_FILE, "a");
+    $file = fopen(LOG_FOLDER."/selfportal.log", "a");
     $entry=preg_replace("/--os-username .* --os-password .* --os-region-name/","--os-username ******** --os-password ******* --os-region-name",$entry);
-	$entry=preg_replace("/--username .* --password .* /","--os-username ******** --os-password ******* --os-region-name",$entry);
+	$entry=preg_replace("/--username .* --password .* /","--username ******** --password *******",$entry);
     fwrite($file,$entry."\n");
     fclose($file);
 }

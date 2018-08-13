@@ -345,9 +345,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
     (crontab -l 2>/dev/null; echo "0 8 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action notify" ) | crontab -
 	(crontab -l 2>/dev/null; echo "1 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action disable" ) | crontab -
-	(crontab -l 2>/dev/null; echo "5 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action delete" ) | crontab -
-	(crontab -l 2>/dev/null; echo "10 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action shutdown_vm" ) | crontab -
-	(crontab -l 2>/dev/null; echo "15 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_vm" ) | crontab -
+    (crontab -l 2>/dev/null; echo "5 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_snapshot" ) | crontab -
+	(crontab -l 2>/dev/null; echo "10 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action delete" ) | crontab -
+	(crontab -l 2>/dev/null; echo "15 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action shutdown_vm" ) | crontab -
+	(crontab -l 2>/dev/null; echo "20 0 */1 * * /usr/bin/php /var/www/selfportal/modules/tasks.php --action terminate_vm" ) | crontab -
 	while [[ -z "$daysbeforeshutdown" ]]
 	do
   		read -p "When user must start receiving notifications about the automatic VM shutdown (like 5 days before expiration date). Enter number in days only: " daysbeforeshutdown
@@ -359,8 +360,14 @@ then
 	done
 	while [[ -z "$extlimit" ]]
 	do
-  		read -p "User can set lifetime of their VMs. VMs should life not londer than ? days? Enter number only: " extlimit
+  		read -p "User can set lifetime of his VMs. What is max VM lifetime in days? Enter number only: " extlimit
 	done
+	
+	while [[ -z "$extlimit" ]]
+	do
+  		read -p "User can set lifetime of his snapshots. What is max snapshot lifetime in days? Enter number only: " extlimit
+	done
+	
 	cat >>/var/www/selfportal/config/config.php <<EOL
 //TASKS CONFIG
 define('DAYS_BEFORE_DISABLE',"$daysbeforeshutdown");

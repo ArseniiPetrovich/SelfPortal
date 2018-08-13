@@ -27,7 +27,9 @@ define('MAIL_ADMIN',"helpdesk_team@example.com");
 define('DAYS_BEFORE_DISABLE',"5");
 define('DAYS_BEFORE_DELETE',"-5");
 define('DAYS_USER_CAN_EXTEND_VM',"180");
-define('LOG_FILE',"/var/log/selfportal.log");
+define('DAYS_USER_CAN_EXTEND_SNAPSHOT',"5");
+define('SNAPSHOT_DEFAULT_PERIOD',"15");
+define('LOG_FOLDER',"/var/log/selfportal");
 //Openstack
 define('OS_AUTH_URL',"https://openstack.example.com:5000/v3");
 define('OS_PROJECT_ID',"<project-id-at-openstack>");
