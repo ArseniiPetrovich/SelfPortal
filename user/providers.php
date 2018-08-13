@@ -105,7 +105,7 @@ function get_vms($panel,$provider=null) {
 		$statuses += [$row['title'] => $row['display_title']];
 	}
 	$query_vms = "SELECT `vms`.`title`,`vms`.`id` as id,INET_NTOA(`IP`) as IP,`username`,`exp_date`,`vms`.`user_id`,`vms`.`cleared`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `vms`,`users`,`vms_statuses`,`providers` WHERE `vms`.`user_id`=`users`.`user_id` and `vms`.`status`=`vms_statuses`.`id` AND `providers`.`id`=`vms`.`provider` AND `vms`.`cleared`=0";
-	$query_tasks = "SELECT `tasks`.`title`,`tasks`.`id` as id,`username`,`exp_date`,`tasks`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `tasks`,`users`,`vms_statuses`,`providers` WHERE `tasks`.`user_id`=`users`.`user_id` AND `providers`.`id`=`tasks`.`provider` and `tasks`.`status`=`vms_statuses`.`id` and cleared=0";
+	$query_tasks = "SELECT `tasks`.`title`,`tasks`.`id` as id,`username`,`exp_date`,`tasks`.`user_id`,`email`,`vms_statuses`.`display_title` as vmstatus,`providers`.`title` as provider FROM `tasks`,`users`,`vms_statuses`,`providers` WHERE `tasks`.`user_id`=`users`.`user_id` AND `tasks`.`status`!=(SELECT `id` FROM `vms_statuses` where LOWER(`title`) LIKE LOWER('DISABLED')) AND `providers`.`id`=`tasks`.`provider` and `tasks`.`status`=`vms_statuses`.`id` and cleared=0";
 	if (!empty($provider))
 	{
 		$query_vms.=" AND `vms`.`provider`=(SELECT `Id` from `providers` where LOWER(`title`) like LOWER('".$provider."'))";

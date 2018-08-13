@@ -101,18 +101,14 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 {
 	$cli="/usr/bin/perl ".dirname(__FILE__)."/../perl/listvms.pl --url ".VMW_SERVER."/sdk/webService --username ".VMW_USERNAME." --password '".VMW_PASSWORD."' --vmalias ".$vmname."_".$user." --folder '".VMW_VM_FOLDER."' --datacenter '".VMW_DATACENTER."'";
 	$result=shell_exec($cli);
-    ob_start();
-    send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user with id ".$_SESSION['user_id']." tried to create VM in OpenStack. Please, check it. Here is the details of his POST query:<pre> " . $result . $cli . $task . $vmname . $user . $user_id . $user_email . "</pre>");
-    ob_get_clean();
-    if ($result==0) return 0;
-	if (!empty($result) && !preg_match('/\s/',$result))
+	if (!empty($result) && preg_match('/^[A-z0-9]{8}-[A-z0-9]{4}-[A-z0-9]{4}-[A-z0-9]{4}-[A-z0-9]{12}$/',trim($result)))
 	{
 		$query="INSERT INTO `vms` SELECT '$result','NULL','$user_id','$vmname',`exp_date`,`provider`,(SELECT id from `vms_statuses` where LOWER(`title`) LIKE LOWER('ENABLED')),'0','VM was successfully created.' FROM `tasks` where `tasks`.`id`='$task'";
 		register_shutdown_function('onDieSqlVM',$task,$user,$user_email);
 		ob_start();
 		db_query($query);
 		ob_end_clean();		
-		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',`cleared`=1 where `id`=".$task;
+		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM was successfully created.',`cleared`=1 where `id`='".$task."'";
 		db_query($query);
 		send_notification ($user_email,'Hi! Your VM called "'.$vmname.'" is ready.<br><hr>Sincerely yours, SelfPortal. In case of any errors - please, contact your system administrators via '.MAIL_ADMIN);
 		return 1;
@@ -120,7 +116,7 @@ function vmdebug($task,$vmname,$user,$user_id,$user_email)
 	else {
 		send_notification(MAIL_ADMIN,"Hello, Administrator! Something went wrong when user named ".$user." tried to create VM '".$vmname."' in VSphere. I was not able to find task '".$task."' or a vm by it's name. Please, check it.");
 		send_notification($user_email,"Hello, $user! Something went wrong when you have tried to create VM '".$vmname."' in VSphere. Sysadmins were already notified about it.");
-		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created due to unknown reason. Debug: $result' WHERE `id`=".$task;
+		$query="UPDATE `tasks` SET `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('FAILURE')),`comment`='VM was not created due to unknown reason. Debug: $result' WHERE `id`='".$task."'";
 		db_query($query);
 		return 0;
 	}
