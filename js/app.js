@@ -1034,7 +1034,7 @@ function js_panel_generate_vms(returndata, provider) {
 					extendlimit.setDate(extendlimit.getDate() + parseInt($(this)[0]['extendlimit']));
 					if (typeof $(this)[0]["date"] !== typeof undefined) {
 						body += $(this)[0]["date"];
-						if (dateVM < extendlimit && $(this)[0]["Status"].includes("BUILDING") && $(this)[0]["Status"].includes("FAILURE")) {
+						if (dateVM < extendlimit && $(this)[0]["Status"].includes("BUILDING") && !$(this)[0]["Status"].includes("danger")) {
 							body += '<button class="btn btn-primary btn-xs dropdown-toggle" type="button" data-toggle="dropdown" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'vms">+' +
 								'</button>' +
 								'<ul class="dropdown-menu vm-actions" data-panel="' + $(this)[0]["provider"].toLowerCase() + 'vms" data-type="vms" id="' + $(this)[0]["ID"] + '">' +
