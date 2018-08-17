@@ -247,7 +247,7 @@ function delete_sites(){
     update_nginx_config();
 }
 function shutdown_vm(){
-    $vms=db_query("SELECT `vms`.`id`,`providers`.`title` FROM `vms`,`providers` WHERE `providers`.`Id`=`vms`.`provider` and `exp_date` < CURDATE()");
+    $vms=db_query("SELECT `vms`.`id`,`providers`.`title` FROM `vms`,`providers` WHERE `providers`.`Id`=`vms`.`provider` and `exp_date` < CURDATE() AND `vms`.`status` IN (SELECT `id` from `vms_statuses` where `display_title` not like '%label-danger%')");
     foreach ($vms as $vm) {
     	switch (strtolower($vm['title']))
 		{
@@ -266,7 +266,7 @@ function shutdown_vm(){
         else 
 		{
 			write_log(date('Y-m-d H:i:s')." [OPENSTACK][CRON][SHUTDOWN][INFO] Cron tried to query ".$vm['title'].": '".$cli."' and suceeded.");
-        	db_query("UPDATE `vms` set `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM disabled due to lifetime expiration' where `exp_date` < CURDATE()");
+        	db_query("UPDATE `vms` set `status`=(SELECT `id` from `vms_statuses` where LOWER(`title`) like LOWER('DISABLED')),`comment`='VM disabled due to lifetime expiration' where `exp_date` < CURDATE() AND `vms`.`status` IN (SELECT `id` from `vms_statuses` where `display_title` not like '%label-danger%')");
 		}
     }
 }
