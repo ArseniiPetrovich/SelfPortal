@@ -333,7 +333,7 @@ function terminate_all_vms_snapshots($vmid,$provider)
      switch ($provider)
      {
          case "openstack":
-             foreach (server_db("SELECT * FROM `snapshots` where `vm_id`='".$vmid."'") as $snapshot_id)
+             foreach (db_query("SELECT * FROM `snapshots` where `vm_id`='".$vmid."'") as $snapshot_id)
              {
                 $cli=$GLOBALS['openstack_cli']." image delete ".$snapshot_id;
                 shell_exec($cli);
