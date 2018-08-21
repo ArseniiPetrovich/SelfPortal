@@ -234,14 +234,14 @@ function send_notification($email,$body){
 }
 //Check expired items and change new status
 function disable_sites(){
-    $query= "UPDATE `proxysites`SET status='Disabled' WHERE `stop_date` < CURDATE()";
+    $query= "UPDATE `proxysites`SET status='Disabled' WHERE `exp_date` < CURDATE()";
     db_query($query);
     usleep(1000);
     update_nginx_config();
 }
 //Delete expired items and change new status
 function delete_sites(){
-    $query= "DELETE FROM `proxysites` WHERE DATEDIFF(stop_date,CURDATE()) < ".DAYS_BEFORE_DELETE;
+    $query= "DELETE FROM `proxysites` WHERE DATEDIFF(exp_date,CURDATE()) < ".DAYS_BEFORE_DELETE;
     db_query($query);
     usleep(1000);
     update_nginx_config();
