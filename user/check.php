@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 'on');
 ini_set('session.cookie_httponly', '1');
 session_start();
 if (!isset($_SESSION['user_id'])) die (http_response_code(401));
